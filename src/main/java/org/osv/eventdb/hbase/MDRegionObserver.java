@@ -2,14 +2,10 @@ package org.osv.eventdb.hbase;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
-import java.util.Set;
 
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
@@ -31,10 +27,36 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.osv.eventdb.util.BitArray;
 import org.xerial.snappy.Snappy;
 
-public class MDRegionObserver extends BaseRegionObserver {
+public abstract class MDRegionObserver extends BaseRegionObserver {
 	private static byte[] dataBytes = Bytes.toBytes("data");
 	private static byte[] valueBytes = Bytes.toBytes("value");
+	private static byte[] countBytes = Bytes.toBytes("count");
 
+	private static int MDQUERY = Command.MDQUERY.ordinal();
+	private static int MDINSERT = Command.MDINSERT.ordinal();
+	private static int INDEXONLY = Command.INDEXONLY.ordinal();
+	private static int APPEND = Command.APPEND.ordinal();
+	private static int PREPEND = Command.PREPEND.ordinal();
+	private static int GETROW = Command.GETROW.ordinal();
+	private static int SCANSTART = Command.SCANSTART.ordinal();
+	private static int SCANEND = Command.SCANEND.ordinal();
+
+	/**
+	 * bitArray saves the bit-information of the result of the query in current time
+	 * bucket.
+	 * 
+	 * @param events       byte array of events of the current time bucket
+	 * @param bitArray     bit-information of the result of the query
+	 * @param eventCount   the number of events in current time bucket
+	 * @param extractCount equals bitArray.count()
+	 * @return byte[] byte array of events of the result in current time bucket
+	 * @throws IOException if bitArray.getBitLength() < eventCount or
+	 *                     bitArray.getBitLength() > eventCount + 8
+	 */
+	protected abstract byte[] extractEvents(byte[] events, BitArray bitArray, int eventCount, int extractCount)
+			throws IOException;
+
+	// and-operation
 	private static void and(byte[] left, byte[] right) {
 		if (left == null || right == null)
 			return;
@@ -45,6 +67,7 @@ public class MDRegionObserver extends BaseRegionObserver {
 			left[i] &= right[i];
 	}
 
+	// or-operation
 	private static void or(byte[] left, byte[] right) {
 		if (left == null || right == null)
 			return;
@@ -53,6 +76,66 @@ public class MDRegionObserver extends BaseRegionObserver {
 		int length = left.length;
 		for (int i = 0; i < length; i++)
 			left[i] |= right[i];
+	}
+
+	private static int getCommand(byte[] b) {
+		if (b.length < 4)
+			return -1;
+		byte[] command = new byte[4];
+		for (int i = 0; i < 4; i++)
+			command[i] = b[i];
+		return Bytes.toInt(command);
+	}
+
+	private static int getPropertyNameID(byte[] b) {
+		if (b.length < 8)
+			return -1;
+		byte[] id = new byte[4];
+		for (int i = 0; i < 4; i++)
+			id[i] = b[i + 4];
+		return Bytes.toInt(id);
+	}
+
+	private static byte[] getValueBytes(byte[] b) {
+		if (b.length < 9)
+			return null;
+		int length = b.length - 8;
+		byte[] value = new byte[length];
+		for (int i = 0; i < length; i++)
+			value[i] = b[i + 8];
+		return value;
+	}
+
+	private static void checkParam(int nameID, byte[] value) throws IOException {
+		if (nameID < 0 || value == null)
+			throw new IOException("PARAMETER ERROR!");
+	}
+
+	private static void doGetRowCommand(int nameID, byte[] value, Map<Integer, List<byte[]>> op) throws IOException {
+		checkParam(nameID, value);
+		List<byte[]> paramList = op.get(nameID);
+		if (paramList == null) {
+			paramList = new ArrayList<byte[]>();
+			paramList.add(value);
+			op.put(nameID, paramList);
+		} else {
+			paramList.add(value);
+		}
+	}
+
+	private static void doScanStartCommand(int nameID, byte[] value, Map<Integer, List<byte[]>> op) throws IOException {
+		List<byte[]> paramList = op.get(nameID);
+		if (paramList == null) {
+			paramList = new ArrayList<byte[]>();
+			paramList.add(value);
+			op.put(nameID, paramList);
+		} else {
+			paramList.add(0, value);
+		}
+	}
+
+	private static void doScanEndCommand(int nameID, byte[] value, Map<Integer, List<byte[]>> op) throws IOException {
+		doGetRowCommand(nameID, value, op);
 	}
 
 	/**
@@ -83,65 +166,54 @@ public class MDRegionObserver extends BaseRegionObserver {
 		NavigableSet<byte[]> cols = colMap.get(dataBytes);
 		if (cols == null)
 			return;
-		Set<String> colsSet = new HashSet<String>();
-		for (byte[] col : cols)
-			colsSet.add(Bytes.toString(col));
-		// common get
-		if (!colsSet.contains("__MDQUERY__"))
-			return;
+		// common get or mdQuery
+		boolean hasMdQuery = false;
 		// return bit-index or event result
-		boolean indexOnly = colsSet.contains("__INDEXONLY__");
+		boolean indexOnly = false;
+		for (byte[] col : cols) {
+			if (getCommand(col) == MDQUERY)
+				hasMdQuery = true;
+			if (getCommand(col) == INDEXONLY)
+				indexOnly = true;
+		}
+		if (!hasMdQuery)
+			return;
 
 		// get single row
-		Map<String, List<Integer>> getOp = new HashMap<String, List<Integer>>();
+		Map<Integer, List<byte[]>> getOp = new HashMap<Integer, List<byte[]>>();
 		// scan multiple rows
-		Map<String, List<Integer>> scanOp = new HashMap<String, List<Integer>>();
-		Map<String, List<Integer>> op = null;
+		Map<Integer, List<byte[]>> scanOp = new HashMap<Integer, List<byte[]>>();
 		// fomat query commands of perperties
-		for (String propStr : colsSet) {
-			if (propStr.startsWith("p#")) {
-				String[] splits = propStr.split("#");
-				if (splits.length != 4)
-					throw new IOException("__MDQUERY__ PARAMETER(" + propStr + ") ERROR!");
-				if ("get".equals(splits[2]))
-					op = getOp;
-				else
-					op = scanOp;
-				List<Integer> paramList = op.get(splits[1]);
-				if (paramList == null) {
-					paramList = new ArrayList<Integer>();
-					paramList.add(Integer.valueOf(splits[3]));
-					op.put(splits[1], paramList);
-				} else {
-					paramList.add(Integer.valueOf(splits[3]));
-				}
-			}
+		for (byte[] col : cols) {
+			int command = getCommand(col);
+			int nameID = getPropertyNameID(col);
+			byte[] value = getValueBytes(col);
+			if (command == GETROW)
+				doGetRowCommand(nameID, value, getOp);
+			else if (command == SCANSTART)
+				doScanStartCommand(nameID, value, scanOp);
+			else if (command == SCANEND)
+				doScanEndCommand(nameID, value, scanOp);
+
 		}
 
-		// query commands
-		for (Map.Entry<String, List<Integer>> entry : getOp.entrySet()) {
-			List<Integer> paramList = entry.getValue();
-			Collections.sort(paramList);
-		}
-		for (Map.Entry<String, List<Integer>> entry : scanOp.entrySet()) {
-			List<Integer> paramList = entry.getValue();
+		// check scan operation
+		for (Map.Entry<Integer, List<byte[]>> entry : scanOp.entrySet()) {
+			List<byte[]> paramList = entry.getValue();
 			if (paramList.size() != 2)
-				throw new IOException("__MDQUERY__ PARAMETER(" + entry.getKey() + ") ERROR!");
-			Collections.sort(paramList);
+				throw new IOException("PARAMETER ERROR!");
 		}
 
-		// region operation
+		// get region
 		Region hregion = c.getEnvironment().getRegion();
 
 		// scan commands
 		byte[] scanResult = null;
-		for (Map.Entry<String, List<Integer>> entry : scanOp.entrySet()) {
+		for (Map.Entry<Integer, List<byte[]>> entry : scanOp.entrySet()) {
 			byte[] singleScanResult = null;
-			List<Integer> paramList = entry.getValue();
-			byte[] start = Bytes.add(get.getRow(), Bytes.toBytes("#" + entry.getKey() + "#"),
-					Bytes.toBytes(String.format("%03d", paramList.get(0))));
-			byte[] end = Bytes.add(get.getRow(), Bytes.toBytes("#" + entry.getKey() + "#"),
-					Bytes.toBytes(String.format("%03d", paramList.get(1))));
+			List<byte[]> paramList = entry.getValue();
+			byte[] start = Bytes.add(get.getRow(), Bytes.toBytes(entry.getKey()), paramList.get(0));
+			byte[] end = Bytes.add(get.getRow(), Bytes.toBytes(entry.getKey()), paramList.get(1));
 			Filter filter = new InclusiveStopFilter(end);
 			Scan scan = new Scan();
 			scan.setStartRow(start);
@@ -169,12 +241,12 @@ public class MDRegionObserver extends BaseRegionObserver {
 		}
 		// get commands
 		byte[] getResult = null;
-		for (Map.Entry<String, List<Integer>> entry : getOp.entrySet()) {
-			List<Integer> paramList = entry.getValue();
+		for (Map.Entry<Integer, List<byte[]>> entry : getOp.entrySet()) {
+			List<byte[]> paramList = entry.getValue();
 			byte[] singleGet = null;
-			for (int param : paramList) {
-				Result paramResult = hregion.get(new Get(Bytes.add(get.getRow(),
-						Bytes.toBytes("#" + entry.getKey() + "#"), Bytes.toBytes(String.format("%03d", param)))));
+			for (byte[] param : paramList) {
+				Result paramResult = hregion
+						.get(new Get(Bytes.add(get.getRow(), Bytes.toBytes(entry.getKey()), param)));
 				if (paramResult != null && paramResult.size() > 0) {
 					byte[] paramBits = Snappy
 							.uncompress(CellUtil.cloneValue(paramResult.getColumnLatestCell(dataBytes, valueBytes)));
@@ -205,29 +277,11 @@ public class MDRegionObserver extends BaseRegionObserver {
 			Result eventsResult = hregion.get(new Get(get.getRow()));
 			byte[] events = Snappy
 					.uncompress(CellUtil.cloneValue(eventsResult.getColumnLatestCell(dataBytes, valueBytes)));
-			int eventsCnt = Bytes
-					.toInt(CellUtil.cloneValue(eventsResult.getColumnLatestCell(dataBytes, Bytes.toBytes("length"))));
-			int evtLen = events.length / eventsCnt;
-			List<byte[]> eventsList = new LinkedList<byte[]>();
-			for (int i = 0; i < eventsCnt; i++)
-				if (bitArray.get(i)) {
-					byte[] evt = new byte[evtLen];
-					int index = i * evtLen;
-					for (int j = 0; j < evtLen; j++)
-						evt[j] = events[index + j];
-					eventsList.add(evt);
-				}
-			int finalCnt = eventsList.size();
-			byte[] finalEvents = new byte[finalCnt * evtLen];
-			int index = 0;
-			for (byte[] evt : eventsList) {
-				int indexTemp = index * evtLen;
-				for (int j = 0; j < evtLen; j++)
-					finalEvents[indexTemp + j] = evt[j];
-				index++;
-			}
-			result.add(new KeyValue(get.getRow(), dataBytes, valueBytes, finalEvents));
-			result.add(new KeyValue(get.getRow(), dataBytes, Bytes.toBytes("count"), Bytes.toBytes(String.valueOf(finalCnt))));
+			int eventsCnt = Bytes.toInt(CellUtil.cloneValue(eventsResult.getColumnLatestCell(dataBytes, countBytes)));
+			int finalCnt = bitArray.count();
+			byte[] finalEvents = extractEvents(events, bitArray, eventsCnt, finalCnt);
+			result.add(new KeyValue(get.getRow(), dataBytes, valueBytes, Snappy.compress(finalEvents)));
+			result.add(new KeyValue(get.getRow(), dataBytes, countBytes, Bytes.toBytes(String.valueOf(finalCnt))));
 		}
 
 		c.bypass();
@@ -254,12 +308,12 @@ public class MDRegionObserver extends BaseRegionObserver {
 	public void prePut(final ObserverContext<RegionCoprocessorEnvironment> c, final Put put, final WALEdit edit,
 			final Durability durability) throws IOException {
 		// command put
-		List<Cell> mdInsert = put.get(dataBytes, Bytes.toBytes("__MDINSERT__"));
+		List<Cell> mdInsert = put.get(dataBytes, Bytes.toBytes(MDINSERT));
 		if (mdInsert == null || mdInsert.size() == 0)
 			return;
-		String mdOp = Bytes.toString(CellUtil.cloneValue(mdInsert.get(0)));
+		int mdOp = Bytes.toInt(CellUtil.cloneValue(mdInsert.get(0)));
 		// append or prepend
-		if ("append".equals(mdOp) || "prepend".equals(mdOp)) {
+		if (mdOp == APPEND || mdOp == PREPEND) {
 			List<Cell> valueCells = put.get(dataBytes, valueBytes);
 			if (valueCells == null || valueCells.size() == 0)
 				return;
@@ -270,7 +324,7 @@ public class MDRegionObserver extends BaseRegionObserver {
 			Cell oldValueCell = oldValueResult.getColumnLatestCell(dataBytes, valueBytes);
 			byte[] oldValue = Snappy.uncompress(CellUtil.cloneValue(oldValueCell));
 			byte[] newValue;
-			if ("append".equals(mdOp))
+			if (mdOp == APPEND)
 				newValue = Bytes.add(oldValue, value);
 			else
 				newValue = Bytes.add(value, oldValue);

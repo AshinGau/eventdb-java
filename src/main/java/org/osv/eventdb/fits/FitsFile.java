@@ -1,11 +1,11 @@
-package org.osv.eventdb.fits.io;
+package org.osv.eventdb.fits;
 
-import org.osv.eventdb.fits.evt.*;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
-import java.io.*;
-import java.util.*;
-
-public abstract class FitsFile<E extends Evt> implements Iterable<E> {
+public abstract class FitsFile implements Iterable<FitsEvent> {
 	private int rowStart;
 	private int evtStart;
 	private int evtLength;
@@ -22,7 +22,6 @@ public abstract class FitsFile<E extends Evt> implements Iterable<E> {
 		this.rowStart = rowStart;
 		this.evtStart = evtStart;
 		this.evtLength = evtLength;
-		evtBin = new byte[evtLength];
 	}
 
 	public void setBufferSize(int size) {
@@ -32,10 +31,9 @@ public abstract class FitsFile<E extends Evt> implements Iterable<E> {
 	public void close() throws IOException {
 		fin.close();
 		buffer = null;
-		evtBin = null;
 	}
 
-	protected abstract E getEvt(byte[] evtBin);
+	protected abstract FitsEvent getEvt(byte[] evtBin);
 
 	private void readToBuffer() {
 		try {
@@ -50,7 +48,7 @@ public abstract class FitsFile<E extends Evt> implements Iterable<E> {
 		}
 	}
 
-	public Iterator<E> iterator() {
+	public Iterator<FitsEvent> iterator() {
 		try {
 			fin = new FileInputStream(filepath);
 			// get row number
@@ -71,19 +69,20 @@ public abstract class FitsFile<E extends Evt> implements Iterable<E> {
 		return new EvtIterator();
 	}
 
-	private class EvtIterator implements Iterator<E> {
+	private class EvtIterator implements Iterator<FitsEvent> {
 		private int index = 0;
 
 		public boolean hasNext() {
 			return index != rowCount;
 		}
 
-		public E next() throws NoSuchElementException {
+		public FitsEvent next() throws NoSuchElementException {
 			if (index == rowCount)
 				throw new NoSuchElementException("Has read to the end of fits file");
 			if (index == (evtStartIndex + bufferSize))
 				readToBuffer();
 			int start = (index - evtStartIndex) * evtLength;
+			evtBin = new byte[evtLength];
 			for (int i = 0; i < evtLength; i++)
 				evtBin[i] = buffer[start + i];
 			index++;

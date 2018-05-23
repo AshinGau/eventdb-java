@@ -1,12 +1,18 @@
-package org.osv.eventdb.fits.evt;
+package org.osv.eventdb.fits;
 
 import nom.tam.util.FitsIO;
 
-public class EvtDecoder {
+/**
+ * Class that encapsulates methods to deserialize event data.
+ */
+public class EventDecoder {
 	private int offset = 0;
 	private byte[] bin;
 
-	public EvtDecoder(byte[] bin) {
+	/**
+	 * @param bin byte array to be deserialized
+	 */
+	public EventDecoder(byte[] bin) {
 		this.bin = bin;
 	}
 

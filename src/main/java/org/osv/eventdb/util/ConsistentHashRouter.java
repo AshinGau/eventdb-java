@@ -1,3 +1,7 @@
+/**
+ * Implemented by fanfish@https://github.com/fanfish/ConsistentHash
+ * Reference http://www.codeproject.com/Articles/56138/Consistent-hashing
+ */
 package org.osv.eventdb.util;
 
 import java.security.MessageDigest;
@@ -7,6 +11,9 @@ import java.util.Iterator;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
+/**
+ * Consistent hash algorithm implemented by SortedMap
+ */
 public class ConsistentHashRouter {
 	private SortedMap<Long, VirtualNode> ring = new TreeMap<Long, VirtualNode>();
 	private MD5Hash hashfunction = new MD5Hash();

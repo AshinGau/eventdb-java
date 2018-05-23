@@ -1,6 +1,7 @@
 package org.osv.eventdb.hbase;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,6 +42,7 @@ public class TableAction {
 	private TableName tableName;
 	// maxFileSize
 	private long maxFileSize;
+	private ConfigProperties configProp;
 
 	/**
 	 * Construct a tableAction specifiying the tableName
@@ -48,7 +50,7 @@ public class TableAction {
 	 * @param tableName the name of a hbase table
 	 */
 	public TableAction(String tableName) throws IOException {
-		ConfigProperties configProp = new ConfigProperties();
+		configProp = new ConfigProperties();
 		init(configProp, tableName);
 	}
 
@@ -58,24 +60,15 @@ public class TableAction {
 	 * @param configProp a configuration for the tableAction
 	 */
 	public TableAction(ConfigProperties configProp, String tableName) throws IOException {
+		this.configProp = configProp;
 		init(configProp, tableName);
-	}
-
-	/**
-	 * Construct a tableAction specifiying its' HbaseConfiguration and the tableName
-	 * 
-	 * @param conf a HbaseConfiguration for the tableAction
-	 */
-	public TableAction(Configuration conf, String tableName) {
-		this.conf = conf;
-		this.tableName = TableName.valueOf(tableName);
-		maxFileSize = conf.getLong("hbase.hregion.max.filesize", 10737418240L);
 	}
 
 	private void init(ConfigProperties configProp, String tableName) {
 		conf = HBaseConfiguration.create();
 		conf.set("hbase.zookeeper.property.clientPort", configProp.getProperty("hbase.zookeeper.property.clientPort"));
 		conf.set("hbase.zookeeper.quorum", configProp.getProperty("hbase.zookeeper.quorum"));
+		conf.set("fs.hdfs.impl",org.apache.hadoop.hdfs.DistributedFileSystem.class.getName());
 		this.tableName = TableName.valueOf(tableName);
 		maxFileSize = Long.valueOf(configProp.getProperty("hbase.hregion.max.filesize"));
 	}
@@ -87,7 +80,7 @@ public class TableAction {
 	 * @param endKey   endKey(exclusive) of the region
 	 * @throws Exception
 	 */
-	public void createRegion(String startKey, String endKey) throws Exception {
+	public void createRegion(byte[] startKey, byte[] endKey) throws Exception {
 		Connection conn = ConnectionFactory.createConnection(conf);
 		Admin admin = conn.getAdmin();
 		// get meta table
@@ -95,11 +88,12 @@ public class TableAction {
 		String name = tableName.getNameAsString();
 		String namespace = tableName.getNamespaceAsString();
 		// hdfs directory of this region
-		Path tableDir = new Path(conf.get("root.dir") + "/data/" + namespace + "/" + name);
+		Path tableDir = new Path(configProp.getProperty("hbase.rootdir") + "/data/" + namespace + "/" + name);
 
-		HRegionInfo regionInfo = new HRegionInfo(tableName, Bytes.toBytes(startKey), Bytes.toBytes(endKey));
+		HRegionInfo regionInfo = new HRegionInfo(tableName, startKey, endKey);
 		// create region directory on hdfs
-		HRegionFileSystem.createRegionOnFileSystem(conf, FileSystem.get(conf), tableDir, regionInfo);
+		HRegionFileSystem.createRegionOnFileSystem(conf, FileSystem.get(new URI(configProp.getProperty("fs.defaultFS")),
+				conf, configProp.getProperty("fs.user")), tableDir, regionInfo);
 
 		// put region information to meta table
 		Put put = MetaTableAccessor.makePutFromRegionInfo(regionInfo);
@@ -118,10 +112,10 @@ public class TableAction {
 	 * @param startKey the startKey of the region
 	 * @throws Exception
 	 */
-	public void deleteRegion(String startKey) throws Exception {
+	public void deleteRegion(byte[] startKey) throws Exception {
 		Connection conn = ConnectionFactory.createConnection(conf);
 		HTable table = (HTable) conn.getTable(tableName);
-		HRegionLocation location = table.getRegionLocator().getRegionLocation(Bytes.toBytes(startKey));
+		HRegionLocation location = table.getRegionLocator().getRegionLocation(startKey);
 		// get region information
 		HRegionInfo regionInfo = location.getRegionInfo();
 		Admin admin = conn.getAdmin();
@@ -129,6 +123,7 @@ public class TableAction {
 		Table metaTable = conn.getTable(TableName.META_TABLE_NAME);
 		String name = tableName.getNameAsString();
 		String namespace = tableName.getNamespaceAsString();
+		// path of its' hdfs directory
 		// path of its' hdfs directory
 		Path tableDir = new Path(conf.get("hbase.rootdir") + "/data/" + namespace + "/" + name);
 
@@ -153,10 +148,7 @@ public class TableAction {
 	 * @param initSplit initial number of splits of the eventdb table
 	 * @throws IOException
 	 */
-	public void createTable(int initSplit) throws IOException {
-		if (initSplit < 1 || initSplit > 9999)
-			throw new IOException("the initial number of regions should be in 1~9999");
-
+	public void createTable(int initSplit) throws Exception {
 		Connection conn = ConnectionFactory.createConnection(conf);
 		Admin admin = conn.getAdmin();
 		// get meta table
@@ -164,7 +156,7 @@ public class TableAction {
 		String name = tableName.getNameAsString();
 		String namespace = tableName.getNamespaceAsString();
 		// hdfs directory path
-		Path tableDir = new Path(conf.get("root.dir") + "/data/" + namespace + "/" + name);
+		Path tableDir = new Path(configProp.getProperty("hbase.rootdir") + "/data/" + namespace + "/" + name);
 
 		if (admin.tableExists(tableName)) {
 			admin.disableTable(tableName);
@@ -182,11 +174,13 @@ public class TableAction {
 		admin.createTable(tdesc);
 
 		// create regions
-		for (int startRegion = 0; startRegion < initSplit; startRegion++) {
-			byte[] startKey = Bytes.toBytes(String.format("%04d", startRegion));
-			byte[] endKey = Bytes.toBytes(String.format("%04d", startRegion + 1));
+		for (int startRegion = 1; startRegion <= initSplit; startRegion++) {
+			byte[] startKey = Bytes.toBytes(startRegion);
+			byte[] endKey = Bytes.toBytes(startRegion + 1);
 			HRegionInfo regionInfo = new HRegionInfo(tableName, startKey, endKey);
-			HRegionFileSystem.createRegionOnFileSystem(conf, FileSystem.get(conf), tableDir, regionInfo);
+			HRegionFileSystem.createRegionOnFileSystem(conf, FileSystem
+					.get(new URI(configProp.getProperty("fs.defaultFS")), conf, configProp.getProperty("fs.user")),
+					tableDir, regionInfo);
 
 			Put put = MetaTableAccessor.makePutFromRegionInfo(regionInfo);
 			metaTable.put(put);
@@ -194,29 +188,31 @@ public class TableAction {
 		}
 
 		// create a meta region that stores meta information
-		HRegionInfo regionInfo = new HRegionInfo(tableName, Bytes.toBytes("meta"), Bytes.toBytes("meta|"));
-		HRegionFileSystem.createRegionOnFileSystem(conf, FileSystem.get(conf), tableDir, regionInfo);
+		HRegionInfo regionInfo = new HRegionInfo(tableName, Bytes.toBytes((int) 0), Bytes.toBytes((int) 1));
+		HRegionFileSystem.createRegionOnFileSystem(conf, FileSystem.get(new URI(configProp.getProperty("fs.defaultFS")),
+				conf, configProp.getProperty("fs.user")), tableDir, regionInfo);
 		Put put = MetaTableAccessor.makePutFromRegionInfo(regionInfo);
 		metaTable.put(put);
 		admin.assign(regionInfo.getRegionName());
 
 		// meta infomartion
 		Table thisTable = conn.getTable(tableName);
-		// initial number of splits
-		Put initSplitPut = new Put(Bytes.toBytes("meta#initSplit"));
+		// initial number of splits: meta + initSplit
+		Put initSplitPut = new Put(Bytes.add(Bytes.toBytes((int) 0), Bytes.toBytes(Command.META_INITSPLIT.ordinal())));
 		initSplitPut.addColumn(Bytes.toBytes("data"), Bytes.toBytes("value"), Bytes.toBytes(initSplit));
 		thisTable.put(initSplitPut);
-		// current region for the consistent hash
+		// current region for the consistent hash: meta + split + splitID
 		List<Put> splitRegionList = new ArrayList<Put>();
-		for (int i = 0; i < initSplit; i++) {
-			Put regionPut = new Put(Bytes.toBytes("meta#split#" + i));
-			regionPut.addColumn(Bytes.toBytes("data"), Bytes.toBytes("value"), Bytes.toBytes(String.format("%04d", i)));
+		for (int i = 1; i <= initSplit; i++) {
+			Put regionPut = new Put(
+					Bytes.add(Bytes.toBytes((int) 0), Bytes.toBytes(Command.META_SPLIT.ordinal()), Bytes.toBytes(i)));
+			regionPut.addColumn(Bytes.toBytes("data"), Bytes.toBytes("value"), Bytes.toBytes(i));
 			splitRegionList.add(regionPut);
 		}
 		thisTable.put(splitRegionList);
-		// total regions of the table
-		thisTable.incrementColumnValue(Bytes.toBytes("meta#regions"), Bytes.toBytes("data"), Bytes.toBytes("value"),
-				initSplit);
+		// total event regions of the table: meta + regions
+		thisTable.incrementColumnValue(Bytes.add(Bytes.toBytes((int) 0), Bytes.toBytes(Command.META_REGIONS.ordinal())),
+				Bytes.toBytes("data"), Bytes.toBytes("value"), initSplit);
 
 		thisTable.close();
 		admin.close();

@@ -1,9 +1,8 @@
 package org.osv.eventdb;
 
-import org.osv.eventdb.fits.io.FitsFileSet;
-import org.osv.eventdb.fits.io.HeFits2Hbase;
+import org.osv.eventdb.fits.FitsFileSet;
+import org.osv.eventdb.fits.HeFits2Hbase;
 import org.osv.eventdb.hbase.TableAction;
-import org.osv.eventdb.util.Fits2Tsv;
 import org.osv.eventdb.util.ObserverAction;
 
 public class Run {
@@ -25,10 +24,6 @@ public class Run {
 			// talbename
 			taction.deleteTable(args[1]);
 			System.out.printf("success to delete table(%s)\n", args[1]);
-
-		} else if (args[0].equals("he2tsv")) {
-			// fitsfile tsvfile
-			Fits2Tsv.heConvert(args[1], args[2]);
 
 		} else if (args[0].equals("observer")) {
 			// tablename coprocessorClass jarPath

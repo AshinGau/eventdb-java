@@ -1,5 +1,12 @@
+/**
+ * Implemented by fanfish@https://github.com/fanfish/ConsistentHash
+ * Reference http://www.codeproject.com/Articles/56138/Consistent-hashing
+ */
 package org.osv.eventdb.util;
 
+/**
+ * Virtual node for consistent hash algorithm
+ */
 public class VirtualNode {
 	private int replicaNumber;
 	private PhysicalNode parent;

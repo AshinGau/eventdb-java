@@ -1,11 +1,10 @@
-package org.osv.eventdb.fits.io;
+package org.osv.eventdb.fits;
 
 import java.io.IOException;
 
-import org.osv.eventdb.fits.evt.HeEvt;
 import org.osv.eventdb.util.ConfigProperties;
 
-public class HeFits2Hbase extends Fits2Hbase<HeEvt> {
+public class HeFits2Hbase extends Fits2Hbase {
 	public HeFits2Hbase(FitsFileSet fits, ConfigProperties configProp, String tablename) throws Exception {
 		super(fits, configProp, tablename, 16);
 	}
@@ -15,12 +14,12 @@ public class HeFits2Hbase extends Fits2Hbase<HeEvt> {
 	}
 
 	@Override
-	protected HeEvt getEvt(byte[] evtBin) throws IOException {
-		return new HeEvt(evtBin);
+	protected FitsEvent getEvt(byte[] evtBin) throws IOException {
+		return new HeEvent(evtBin);
 	}
 
 	@Override
-	protected FitsFile<HeEvt> getFitsFile(String filename) {
+	protected FitsFile getFitsFile(String filename) {
 		return new HeFitsFile(filename);
 	}
 }

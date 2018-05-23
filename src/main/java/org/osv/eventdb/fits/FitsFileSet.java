@@ -1,4 +1,4 @@
-package org.osv.eventdb.fits.io;
+package org.osv.eventdb.fits;
 
 import java.io.File;
 import java.util.ArrayList;
