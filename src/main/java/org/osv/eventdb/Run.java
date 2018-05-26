@@ -31,6 +31,8 @@ public class Run {
 			ObserverAction action = new ObserverAction(args[1]);
 			action.addCoprocessor(args[2], args[3]);
 
+		} else if (args[0].equals("query")) {
+
 		}
 	}
 }

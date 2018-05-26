@@ -51,11 +51,6 @@ public abstract class Fits2Hbase implements Runnable {
 	protected long maxFileThreshold;
 	protected ConfigProperties configProp;
 	protected FileSystem hdfs;
-	protected static byte[] dataBytes = Bytes.toBytes("data");
-	protected static byte[] valueBytes = Bytes.toBytes("value");
-	protected static byte[] metaBytes = Bytes.toBytes((int) 0);
-	protected static byte[] splitBytes = Bytes.toBytes(Command.META_SPLIT.ordinal());
-	protected static byte[] regionsBytes = Bytes.toBytes(Command.META_REGIONS.ordinal());
 	protected double timeBucketInterval;
 
 	public Fits2Hbase(FitsFileSet fits, ConfigProperties configProp, String tablename, int evtLength) throws Exception {
@@ -81,9 +76,9 @@ public abstract class Fits2Hbase implements Runnable {
 		htable = hconn.getTable(TableName.valueOf(tablename));
 		maxFileThreshold = Long.valueOf(configProp.getProperty("hbase.hregion.filesize.threshold"));
 
-		splits = Bytes.toInt(CellUtil
-				.cloneValue(htable.get(new Get(Bytes.add(metaBytes, Bytes.toBytes(Command.META_INITSPLIT.ordinal()))))
-						.getColumnLatestCell(dataBytes, valueBytes)));
+		splits = Bytes.toInt(
+				CellUtil.cloneValue(htable.get(new Get(Bytes.add(Command.metaZeroBytes, Command.metaInitSplitBytes)))
+						.getColumnLatestCell(Command.dataBytes, Command.valueBytes)));
 		List<PhysicalNode> regionPrefix = new ArrayList<PhysicalNode>();
 		for (int i = 1; i <= splits; i++)
 			regionPrefix.add(new PhysicalNode(String.valueOf(i)));
@@ -205,9 +200,10 @@ public abstract class Fits2Hbase implements Runnable {
 
 		// get region prefix
 		String regionIndex = conHashRouter.getNode(String.valueOf(timeBucket)).getId();
-		byte[] regionPrefix = CellUtil.cloneValue(
-				htable.get(new Get(Bytes.add(metaBytes, splitBytes, Bytes.toBytes(Integer.valueOf(regionIndex)))))
-						.getColumnLatestCell(dataBytes, valueBytes));
+		byte[] regionPrefix = CellUtil.cloneValue(htable
+				.get(new Get(Bytes.add(Command.metaZeroBytes, Command.metaSplitBytes,
+						Bytes.toBytes(Integer.valueOf(regionIndex)))))
+				.getColumnLatestCell(Command.dataBytes, Command.valueBytes));
 		int regionPrefixInt = Bytes.toInt(regionPrefix);
 		// check the capacity of region
 		if (beyondThreshold(regionPrefix)) {
@@ -217,12 +213,14 @@ public abstract class Fits2Hbase implements Runnable {
 			try {
 				// mount region
 				int regionPrefixCurr = Bytes.toInt(CellUtil.cloneValue(htable
-						.get(new Get(Bytes.add(metaBytes, splitBytes, Bytes.toBytes(Integer.valueOf(regionIndex)))))
-						.getColumnLatestCell(dataBytes, valueBytes)));
+						.get(new Get(Bytes.add(Command.metaZeroBytes, Command.metaSplitBytes,
+								Bytes.toBytes(Integer.valueOf(regionIndex)))))
+						.getColumnLatestCell(Command.dataBytes, Command.valueBytes)));
 				if (regionPrefixInt == regionPrefixCurr) {
 					TableAction tableAction = new TableAction(configProp, htable.getName().getNameAsString());
-					int regionPrefixNew = (int) htable.incrementColumnValue(Bytes.add(metaBytes, regionsBytes),
-							dataBytes, valueBytes, 1);
+					int regionPrefixNew = (int) htable.incrementColumnValue(
+							Bytes.add(Command.metaZeroBytes, Command.metaRegionsBytes), Command.dataBytes,
+							Command.valueBytes, 1);
 					tableAction.createRegion(Bytes.toBytes(regionPrefixNew),
 							Bytes.toBytes((int) (regionPrefixNew + 1)));
 					System.out.printf("%s mounted a new region: %s\n", timeformat.format(new Date()), regionPrefixNew);
@@ -238,11 +236,11 @@ public abstract class Fits2Hbase implements Runnable {
 		// old bucket
 		int putCommand = -1;
 		Get oldBucket = new Get(Bytes.add(regionPrefix, timeBucketBytes));
-		oldBucket.addColumn(dataBytes, Bytes.toBytes("startTime"));
-		oldBucket.addColumn(dataBytes, Bytes.toBytes("endTime"));
+		oldBucket.addColumn(Command.dataBytes, Bytes.toBytes("startTime"));
+		oldBucket.addColumn(Command.dataBytes, Bytes.toBytes("endTime"));
 		Result oldBucketResult = htable.get(oldBucket);
-		Cell startCell = oldBucketResult.getColumnLatestCell(dataBytes, Bytes.toBytes("startTime"));
-		Cell endCell = oldBucketResult.getColumnLatestCell(dataBytes, Bytes.toBytes("endTime"));
+		Cell startCell = oldBucketResult.getColumnLatestCell(Command.dataBytes, Bytes.toBytes("startTime"));
+		Cell endCell = oldBucketResult.getColumnLatestCell(Command.dataBytes, Bytes.toBytes("endTime"));
 		double oldStartTime = 0.0;
 		double oldEndTime = 0.0;
 		if (startCell != null && endCell != null) {
@@ -263,31 +261,31 @@ public abstract class Fits2Hbase implements Runnable {
 		boolean existsOldBucket = (putCommand != -1);
 		// put events
 		Put eventsPut = new Put(Bytes.add(regionPrefix, timeBucketBytes));
-		eventsPut.addColumn(dataBytes, valueBytes, Snappy.compress(evtsBin));
+		eventsPut.addColumn(Command.dataBytes, Command.valueBytes, Snappy.compress(evtsBin));
 		if (existsOldBucket)
-			eventsPut.addColumn(dataBytes, Bytes.toBytes(Command.MDINSERT.ordinal()), Bytes.toBytes(putCommand));
+			eventsPut.addColumn(Command.dataBytes, Command.mdInsertBytes, Bytes.toBytes(putCommand));
 		htable.put(eventsPut);
 
 		// put index
 		List<Put> indexPuts = new LinkedList<Put>();
 		for (Map.Entry<String, BitArray> ent : bitMap.entrySet()) {
 			Put indexput = new Put(Bytes.add(regionPrefix, timeBucketBytes, Bytes.toBytes(ent.getKey())));
-			indexput.addColumn(dataBytes, valueBytes, Snappy.compress(ent.getValue().getBits()));
+			indexput.addColumn(Command.dataBytes, Command.valueBytes, Snappy.compress(ent.getValue().getBits()));
 			if (existsOldBucket)
-				indexput.addColumn(dataBytes, Bytes.toBytes(Command.MDINSERT.ordinal()), Bytes.toBytes(putCommand));
+				indexput.addColumn(Command.dataBytes, Command.mdInsertBytes, Bytes.toBytes(putCommand));
 			indexPuts.add(indexput);
 		}
 
 		// events length && startTime && endTime
 		Put lengthPut = new Put(Bytes.add(regionPrefix, timeBucketBytes));
-		lengthPut.addColumn(dataBytes, Bytes.toBytes("count"), Bytes.toBytes(length));
-		lengthPut.addColumn(dataBytes, Bytes.toBytes("startTime"), Bytes.toBytes(startTime));
-		lengthPut.addColumn(dataBytes, Bytes.toBytes("endTime"), Bytes.toBytes(endTime));
+		lengthPut.addColumn(Command.dataBytes, Command.countBytes, Bytes.toBytes(length));
+		lengthPut.addColumn(Command.dataBytes, Bytes.toBytes("startTime"), Bytes.toBytes(startTime));
+		lengthPut.addColumn(Command.dataBytes, Bytes.toBytes("endTime"), Bytes.toBytes(endTime));
 		indexPuts.add(lengthPut);
 
 		// put meta information
-		Put metaPut = new Put(Bytes.add(metaBytes, Bytes.toBytes(Command.META_TIMEBUCKET.ordinal()), timeBucketBytes));
-		metaPut.addColumn(dataBytes, valueBytes, regionPrefix);
+		Put metaPut = new Put(Bytes.add(Command.metaZeroBytes, Command.metaBucketBytes, timeBucketBytes));
+		metaPut.addColumn(Command.dataBytes, Command.valueBytes, regionPrefix);
 		indexPuts.add(metaPut);
 		htable.put(indexPuts);
 

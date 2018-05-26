@@ -28,19 +28,6 @@ import org.osv.eventdb.util.BitArray;
 import org.xerial.snappy.Snappy;
 
 public abstract class MDRegionObserver extends BaseRegionObserver {
-	private static byte[] dataBytes = Bytes.toBytes("data");
-	private static byte[] valueBytes = Bytes.toBytes("value");
-	private static byte[] countBytes = Bytes.toBytes("count");
-
-	private static int MDQUERY = Command.MDQUERY.ordinal();
-	private static int MDINSERT = Command.MDINSERT.ordinal();
-	private static int INDEXONLY = Command.INDEXONLY.ordinal();
-	private static int APPEND = Command.APPEND.ordinal();
-	private static int PREPEND = Command.PREPEND.ordinal();
-	private static int GETROW = Command.GETROW.ordinal();
-	private static int SCANSTART = Command.SCANSTART.ordinal();
-	private static int SCANEND = Command.SCANEND.ordinal();
-
 	/**
 	 * bitArray saves the bit-information of the result of the query in current time
 	 * bucket.
@@ -163,7 +150,7 @@ public abstract class MDRegionObserver extends BaseRegionObserver {
 		Map<byte[], NavigableSet<byte[]>> colMap = get.getFamilyMap();
 		if (colMap == null)
 			return;
-		NavigableSet<byte[]> cols = colMap.get(dataBytes);
+		NavigableSet<byte[]> cols = colMap.get(Command.dataBytes);
 		if (cols == null)
 			return;
 		// common get or mdQuery
@@ -171,9 +158,9 @@ public abstract class MDRegionObserver extends BaseRegionObserver {
 		// return bit-index or event result
 		boolean indexOnly = false;
 		for (byte[] col : cols) {
-			if (getCommand(col) == MDQUERY)
+			if (getCommand(col) == Command.mdQueryInt)
 				hasMdQuery = true;
-			if (getCommand(col) == INDEXONLY)
+			if (getCommand(col) == Command.indexOnlyInt)
 				indexOnly = true;
 		}
 		if (!hasMdQuery)
@@ -188,11 +175,11 @@ public abstract class MDRegionObserver extends BaseRegionObserver {
 			int command = getCommand(col);
 			int nameID = getPropertyNameID(col);
 			byte[] value = getValueBytes(col);
-			if (command == GETROW)
+			if (command == Command.getRowInt)
 				doGetRowCommand(nameID, value, getOp);
-			else if (command == SCANSTART)
+			else if (command == Command.scanStartInt)
 				doScanStartCommand(nameID, value, scanOp);
-			else if (command == SCANEND)
+			else if (command == Command.scanEndInt)
 				doScanEndCommand(nameID, value, scanOp);
 
 		}
@@ -217,7 +204,7 @@ public abstract class MDRegionObserver extends BaseRegionObserver {
 			Filter filter = new InclusiveStopFilter(end);
 			Scan scan = new Scan();
 			scan.setStartRow(start);
-			scan.addColumn(dataBytes, valueBytes);
+			scan.addColumn(Command.dataBytes, Command.valueBytes);
 			scan.setFilter(filter);
 			RegionScanner regionScanner = hregion.getScanner(scan);
 			List<Cell> internalResult = null;
@@ -248,8 +235,8 @@ public abstract class MDRegionObserver extends BaseRegionObserver {
 				Result paramResult = hregion
 						.get(new Get(Bytes.add(get.getRow(), Bytes.toBytes(entry.getKey()), param)));
 				if (paramResult != null && paramResult.size() > 0) {
-					byte[] paramBits = Snappy
-							.uncompress(CellUtil.cloneValue(paramResult.getColumnLatestCell(dataBytes, valueBytes)));
+					byte[] paramBits = Snappy.uncompress(CellUtil
+							.cloneValue(paramResult.getColumnLatestCell(Command.dataBytes, Command.valueBytes)));
 					if (singleGet == null)
 						singleGet = paramBits;
 					else
@@ -267,21 +254,20 @@ public abstract class MDRegionObserver extends BaseRegionObserver {
 		else
 			and(scanResult, getResult);
 
-		if (indexOnly || scanResult == null) {
-			if (scanResult == null)
-				scanResult = Bytes.toBytes("");
-			result.add(new KeyValue(get.getRow(), dataBytes, valueBytes, scanResult));
-		} else {
+		if (indexOnly && scanResult != null) {
+			result.add(new KeyValue(get.getRow(), Command.dataBytes, Command.valueBytes, scanResult));
+		} else if (!indexOnly && scanResult != null) {
 			// get events
 			BitArray bitArray = new BitArray(scanResult);
 			Result eventsResult = hregion.get(new Get(get.getRow()));
-			byte[] events = Snappy
-					.uncompress(CellUtil.cloneValue(eventsResult.getColumnLatestCell(dataBytes, valueBytes)));
-			int eventsCnt = Bytes.toInt(CellUtil.cloneValue(eventsResult.getColumnLatestCell(dataBytes, countBytes)));
+			byte[] events = Snappy.uncompress(
+					CellUtil.cloneValue(eventsResult.getColumnLatestCell(Command.dataBytes, Command.valueBytes)));
+			int eventsCnt = Bytes.toInt(
+					CellUtil.cloneValue(eventsResult.getColumnLatestCell(Command.dataBytes, Command.countBytes)));
 			int finalCnt = bitArray.count();
 			byte[] finalEvents = extractEvents(events, bitArray, eventsCnt, finalCnt);
-			result.add(new KeyValue(get.getRow(), dataBytes, valueBytes, Snappy.compress(finalEvents)));
-			result.add(new KeyValue(get.getRow(), dataBytes, countBytes, Bytes.toBytes(String.valueOf(finalCnt))));
+			result.add(new KeyValue(get.getRow(), Command.dataBytes, Command.valueBytes, Snappy.compress(finalEvents)));
+			result.add(new KeyValue(get.getRow(), Command.dataBytes, Command.countBytes, Bytes.toBytes(finalCnt)));
 		}
 
 		c.bypass();
@@ -308,28 +294,28 @@ public abstract class MDRegionObserver extends BaseRegionObserver {
 	public void prePut(final ObserverContext<RegionCoprocessorEnvironment> c, final Put put, final WALEdit edit,
 			final Durability durability) throws IOException {
 		// command put
-		List<Cell> mdInsert = put.get(dataBytes, Bytes.toBytes(MDINSERT));
+		List<Cell> mdInsert = put.get(Command.dataBytes, Command.mdInsertBytes);
 		if (mdInsert == null || mdInsert.size() == 0)
 			return;
 		int mdOp = Bytes.toInt(CellUtil.cloneValue(mdInsert.get(0)));
 		// append or prepend
-		if (mdOp == APPEND || mdOp == PREPEND) {
-			List<Cell> valueCells = put.get(dataBytes, valueBytes);
+		if (mdOp == Command.appendInt || mdOp == Command.prependInt) {
+			List<Cell> valueCells = put.get(Command.dataBytes, Command.valueBytes);
 			if (valueCells == null || valueCells.size() == 0)
 				return;
 			byte[] value = Snappy.uncompress(CellUtil.cloneValue(valueCells.get(0)));
 			byte[] rowkey = put.getRow();
 			Region hregion = c.getEnvironment().getRegion();
 			Result oldValueResult = hregion.get(new Get(rowkey));
-			Cell oldValueCell = oldValueResult.getColumnLatestCell(dataBytes, valueBytes);
+			Cell oldValueCell = oldValueResult.getColumnLatestCell(Command.dataBytes, Command.valueBytes);
 			byte[] oldValue = Snappy.uncompress(CellUtil.cloneValue(oldValueCell));
 			byte[] newValue;
-			if (mdOp == APPEND)
+			if (mdOp == Command.appendInt)
 				newValue = Bytes.add(oldValue, value);
 			else
 				newValue = Bytes.add(value, oldValue);
 			Put newPut = new Put(rowkey);
-			newPut.addColumn(dataBytes, valueBytes, Snappy.compress(newValue));
+			newPut.addColumn(Command.dataBytes, Command.valueBytes, Snappy.compress(newValue));
 			hregion.put(newPut);
 		}
 		c.bypass();

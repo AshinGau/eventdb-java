@@ -68,7 +68,7 @@ public class TableAction {
 		conf = HBaseConfiguration.create();
 		conf.set("hbase.zookeeper.property.clientPort", configProp.getProperty("hbase.zookeeper.property.clientPort"));
 		conf.set("hbase.zookeeper.quorum", configProp.getProperty("hbase.zookeeper.quorum"));
-		conf.set("fs.hdfs.impl",org.apache.hadoop.hdfs.DistributedFileSystem.class.getName());
+		conf.set("fs.hdfs.impl", org.apache.hadoop.hdfs.DistributedFileSystem.class.getName());
 		this.tableName = TableName.valueOf(tableName);
 		maxFileSize = Long.valueOf(configProp.getProperty("hbase.hregion.max.filesize"));
 	}
@@ -163,7 +163,7 @@ public class TableAction {
 			admin.deleteTable(tableName);
 		}
 		HTableDescriptor tdesc = new HTableDescriptor(tableName);
-		HColumnDescriptor cdesc = new HColumnDescriptor(Bytes.toBytes("data"));
+		HColumnDescriptor cdesc = new HColumnDescriptor(Command.dataBytes);
 		cdesc.setMaxVersions(1).setBlocksize(65536).setBlockCacheEnabled(true).setBloomFilterType(BloomType.ROW)
 				.setTimeToLive(259200).setDataBlockEncoding(DataBlockEncoding.PREFIX_TREE);
 		// .setCompressionType(Compression.Algorithm.SNAPPY);
@@ -198,21 +198,20 @@ public class TableAction {
 		// meta infomartion
 		Table thisTable = conn.getTable(tableName);
 		// initial number of splits: meta + initSplit
-		Put initSplitPut = new Put(Bytes.add(Bytes.toBytes((int) 0), Bytes.toBytes(Command.META_INITSPLIT.ordinal())));
-		initSplitPut.addColumn(Bytes.toBytes("data"), Bytes.toBytes("value"), Bytes.toBytes(initSplit));
+		Put initSplitPut = new Put(Bytes.add(Command.metaZeroBytes, Command.metaInitSplitBytes));
+		initSplitPut.addColumn(Command.dataBytes, Command.valueBytes, Bytes.toBytes(initSplit));
 		thisTable.put(initSplitPut);
 		// current region for the consistent hash: meta + split + splitID
 		List<Put> splitRegionList = new ArrayList<Put>();
 		for (int i = 1; i <= initSplit; i++) {
-			Put regionPut = new Put(
-					Bytes.add(Bytes.toBytes((int) 0), Bytes.toBytes(Command.META_SPLIT.ordinal()), Bytes.toBytes(i)));
-			regionPut.addColumn(Bytes.toBytes("data"), Bytes.toBytes("value"), Bytes.toBytes(i));
+			Put regionPut = new Put(Bytes.add(Command.metaZeroBytes, Command.metaSplitBytes, Bytes.toBytes(i)));
+			regionPut.addColumn(Command.dataBytes, Command.valueBytes, Bytes.toBytes(i));
 			splitRegionList.add(regionPut);
 		}
 		thisTable.put(splitRegionList);
 		// total event regions of the table: meta + regions
-		thisTable.incrementColumnValue(Bytes.add(Bytes.toBytes((int) 0), Bytes.toBytes(Command.META_REGIONS.ordinal())),
-				Bytes.toBytes("data"), Bytes.toBytes("value"), initSplit);
+		thisTable.incrementColumnValue(Bytes.add(Command.metaZeroBytes, Command.metaRegionsBytes), Command.dataBytes,
+				Command.valueBytes, initSplit);
 
 		thisTable.close();
 		admin.close();
