@@ -24,6 +24,13 @@ public class ExperimentTest {
 		List<PropertyValue> detIDValues = new LinkedList<PropertyValue>();
 		detIDValues.add(new BytePropertyValue((byte) 1));
 		detIDValues.add(new BytePropertyValue((byte) 2));
+		detIDValues.add(new BytePropertyValue((byte) 3));
+		detIDValues.add(new BytePropertyValue((byte) 4));
+		detIDValues.add(new BytePropertyValue((byte) 5));
+		detIDValues.add(new BytePropertyValue((byte) 6));
+		detIDValues.add(new BytePropertyValue((byte) 11));
+		detIDValues.add(new BytePropertyValue((byte) 13));
+		detIDValues.add(new BytePropertyValue((byte) 16));
 		getOp.put(detIDInt, detIDValues);
 
 		MDQuery query = new MDQuery(new ConfigProperties(), "HeFits");

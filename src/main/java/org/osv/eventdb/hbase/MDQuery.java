@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
@@ -86,12 +87,9 @@ public class MDQuery {
 		int count = 0;
 		List<byte[]> result = new LinkedList<byte[]>();
 		for (Result eventResult : eventResults) {
-			Cell eventCell = eventResult.getColumnLatestCell(Command.dataBytes, Command.valueBytes);
-			Cell countCell = eventResult.getColumnLatestCell(Command.dataBytes, Command.countBytes);
-			if (eventCell != null && countCell != null) {
-				result.add(Snappy.uncompress(CellUtil.cloneValue(eventCell)));
-				count += Bytes.toInt(CellUtil.cloneValue(eventCell));
-			}
+			NavigableMap<byte[], byte[]> map = eventResult.getFamilyMap(Command.dataBytes);
+			count += Bytes.toInt(map.get(Command.countBytes));
+			result.add(Snappy.uncompress(map.get(Command.valueBytes)));
 		}
 
 		long endTime = System.currentTimeMillis();
