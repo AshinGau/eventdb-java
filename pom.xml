@@ -109,7 +109,6 @@
 		-->
 	</dependencies>
 	<repositories>
-		<!--
 		<repository>
 			<id>sonatype-snapshots</id>
 			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
@@ -117,7 +116,6 @@
 				<enabled>true</enabled>
 			</snapshots>
 		</repository>
-		-->
 		<repository>
 			<id>Cloudera Repository</id>
 			<url>https://repository.cloudera.com/content/repositories/releases/</url>
