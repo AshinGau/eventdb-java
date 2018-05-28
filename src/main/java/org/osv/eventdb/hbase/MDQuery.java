@@ -59,9 +59,10 @@ public class MDQuery {
 		List<Get> gets = new LinkedList<Get>();
 		for (byte[] reginoPrefix : regionPrefixs) {
 			Get get = new Get(reginoPrefix);
-			get.addColumn(Command.dataBytes, Command.mdQueryBytes);
+			if ((getOp != null && getOp.size() > 0) || (scanOp != null && scanOp.size() > 0))
+				get.addColumn(Command.dataBytes, Command.mdQueryBytes);
 
-			if (getOp != null)
+			if (getOp != null && getOp.size() > 0)
 				for (Map.Entry<Integer, List<PropertyValue>> entry : getOp.entrySet()) {
 					byte[] property = Bytes.toBytes(entry.getKey());
 					List<PropertyValue> values = entry.getValue();
@@ -70,7 +71,7 @@ public class MDQuery {
 								Bytes.add(Command.getRowBytes, property, value.getSerializedValue()));
 				}
 
-			if (scanOp != null)
+			if (scanOp != null && scanOp.size() > 0)
 				for (Map.Entry<Integer, Pair<PropertyValue, PropertyValue>> entry : scanOp.entrySet()) {
 					byte[] property = Bytes.toBytes(entry.getKey());
 					Pair<PropertyValue, PropertyValue> pair = entry.getValue();

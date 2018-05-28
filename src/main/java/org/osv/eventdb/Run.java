@@ -9,10 +9,18 @@ public class Run {
 	public static void main(String[] args) throws Exception {
 		if (args[0].equals("insertHeFits")) {
 			// pathname, talbename, [threads]
-			FitsFileSet fits = new FitsFileSet(args[1]);
-			HeFits2Hbase fits2Hbase = new HeFits2Hbase(fits, args[2]);
-			fits2Hbase.insertFitsFile();
+			String fitsFile = args[1];
+			String tableName = args[2];
+			int threads = Integer.valueOf(args[3]);
 
+			FitsFileSet fits = new FitsFileSet(fitsFile);
+			int fileNum = fits.getTotal();
+			threads = fileNum > threads ? threads : fileNum;
+			System.out.printf("Insert HeFits file in %d threads\n", threads);
+			for (int i = 0; i < threads; i++) {
+				HeFits2Hbase fits2Hbase = new HeFits2Hbase(fits, tableName);
+				fits2Hbase.start();
+			}
 		} else if (args[0].equals("createTable")) {
 			TableAction taction = new TableAction(args[1]);
 			// tablename regions
