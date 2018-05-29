@@ -11,10 +11,10 @@ public abstract class FitsEvent implements Event, Comparable<FitsEvent> {
 	protected byte[] bin;
 	protected int length;
 	protected double time;
-	protected BytePropertyValue detID;
-	protected BytePropertyValue channel;
-	protected BytePropertyValue pulse;
-	protected BytePropertyValue eventType;
+	protected PropertyValue detID;
+	protected PropertyValue channel;
+	protected PropertyValue pulse;
+	protected PropertyValue eventType;
 	protected PropertyValue[] values;
 	protected static int[] names = { 0, 1, 2, 3 };
 
@@ -41,22 +41,6 @@ public abstract class FitsEvent implements Event, Comparable<FitsEvent> {
 
 	public double getTime() {
 		return time;
-	}
-
-	public byte getDetID() {
-		return detID.getValue();
-	}
-
-	public byte getChannel() {
-		return channel.getValue();
-	}
-
-	public byte getPulse() {
-		return pulse.getValue();
-	}
-
-	public byte getEventType() {
-		return eventType.getValue();
 	}
 
 	public int compareTo(FitsEvent evt) {
