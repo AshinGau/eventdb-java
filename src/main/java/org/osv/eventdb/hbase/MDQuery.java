@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableMap;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
@@ -28,6 +27,10 @@ public class MDQuery {
 	private Connection conn;
 	private Table table;
 
+	public MDQuery(String tableName) throws IOException {
+		this(new ConfigProperties(), tableName);
+	}
+
 	public MDQuery(ConfigProperties configProperties, String tableName) throws IOException {
 		this.configProp = configProperties;
 		conf = HBaseConfiguration.create();
@@ -40,8 +43,6 @@ public class MDQuery {
 
 	public List<byte[]> query(List<Integer> buckets, Map<Integer, List<PropertyValue>> getOp,
 			Map<Integer, Pair<PropertyValue, PropertyValue>> scanOp) throws IOException {
-		long startTime = System.currentTimeMillis();
-
 		List<Get> regionPrefixGets = new LinkedList<Get>();
 		for (int bucketID : buckets)
 			regionPrefixGets
@@ -85,16 +86,13 @@ public class MDQuery {
 		}
 
 		Result[] eventResults = table.get(gets);
-		int count = 0;
 		List<byte[]> result = new LinkedList<byte[]>();
 		for (Result eventResult : eventResults) {
-			NavigableMap<byte[], byte[]> map = eventResult.getFamilyMap(Command.dataBytes);
-			count += Bytes.toInt(map.get(Command.countBytes));
-			result.add(Snappy.uncompress(map.get(Command.valueBytes)));
-		}
+			Cell eventCell = eventResult.getColumnLatestCell(Command.dataBytes, Command.valueBytes);
+			if (eventCell != null)
+				result.add(Snappy.uncompress(CellUtil.cloneValue(eventCell)));
 
-		long endTime = System.currentTimeMillis();
-		System.out.printf("Retrieve %d events in %.3fs\n", count, (endTime - startTime) / 1000.0);
+		}
 
 		return result;
 	}

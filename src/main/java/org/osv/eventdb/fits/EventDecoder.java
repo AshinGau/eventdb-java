@@ -16,6 +16,11 @@ public class EventDecoder {
 		this.bin = bin;
 	}
 
+	public short readShort() {
+		return (short) (bin[offset++] << FitsIO.BITS_OF_1_BYTE | //
+				bin[offset++] & FitsIO.BYTE_MASK);
+	}
+
 	public int readInt() {
 		return bin[offset++] << FitsIO.BITS_OF_3_BYTES | //
 				(bin[offset++] & FitsIO.BYTE_MASK) << FitsIO.BITS_OF_2_BYTES | //
