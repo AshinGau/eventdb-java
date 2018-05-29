@@ -248,12 +248,12 @@ public abstract class Fits2Hbase implements Runnable {
 			oldEndTime = Bytes.toDouble(CellUtil.cloneValue(endCell));
 			if (endTime <= oldStartTime) {
 				endTime = oldEndTime;
-				putCommand = Command.PREPEND.ordinal();
+				putCommand = Command.prependInt;
 			} else if (startTime >= oldEndTime) {
 				startTime = oldStartTime;
-				putCommand = Command.APPEND.ordinal();
+				putCommand = Command.appendInt;
 			}
-			System.out.printf("(%.2f%%)%s has to fix(%s) the timeBucket: %d\n", fits.getPercentDone() * 100.0,
+			System.out.printf("(%.2f%%)%s has to fix(%d) the timeBucket: %d\n", fits.getPercentDone() * 100.0,
 					timeformat.format(new Date()), putCommand, timeBucket);
 		}
 
