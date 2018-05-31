@@ -1,8 +1,9 @@
 package org.osv.eventdb.fits;
 
+import java.util.Map;
+
 import org.osv.eventdb.event.Event;
 import org.osv.eventdb.event.PropertyValue;
-import org.osv.eventdb.util.Pair;
 
 /**
  * Event data object of fits file
@@ -91,15 +92,15 @@ public abstract class FitsEvent implements Event, Comparable<FitsEvent> {
 	/**
 	 * Get property family of this event. Unsupported Currently.
 	 */
-	public Pair<String, PropertyValue>[] getPropertyFamily() throws UnsupportedOperationException{
+	public Map<String, PropertyValue> getPropertyFamily() throws UnsupportedOperationException{
 		throw new UnsupportedOperationException("getPropertyFamily is unsupported by FitsEvent");
 	}
 
 	/**
 	 * Get property family of this event. Unsupported Currently.
 	 */
-	public Pair<Integer, PropertyValue>[] getPropertyFamily2() throws UnsupportedOperationException{
-		throw new UnsupportedOperationException("getPropertyFamily is unsupported by FitsEvent");
+	public Map<Integer, PropertyValue> getPropertyMap() throws UnsupportedOperationException{
+		throw new UnsupportedOperationException("getPropertyMap is unsupported by FitsEvent");
 	}
 
 	/**

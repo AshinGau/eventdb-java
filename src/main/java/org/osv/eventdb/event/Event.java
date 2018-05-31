@@ -1,6 +1,6 @@
 package org.osv.eventdb.event;
 
-import org.osv.eventdb.util.Pair;
+import java.util.Map;
 
 /**
  * Data object inserted into eventdb should implement this interface.
@@ -51,12 +51,12 @@ public interface Event {
 	/**
 	 * Get property family of this event. Can be Unsupported if necessary.
 	 */
-	Pair<String, PropertyValue>[] getPropertyFamily() throws UnsupportedOperationException;
+	Map<String, PropertyValue> getPropertyFamily() throws UnsupportedOperationException;
 
 	/**
 	 * Get property family of this event. Can be Unsupported if necessary.
 	 */
-	Pair<Integer, PropertyValue>[] getPropertyFamily2() throws UnsupportedOperationException;
+	Map<Integer, PropertyValue> getPropertyMap() throws UnsupportedOperationException;
 
 	/**
 	 * Get value of the specific property. Can be Unsupported if necessary.
