@@ -7,7 +7,7 @@ Like most big data systems, eventdb uses fragmentation technology to store and r
 1. mvn package
 2. hadoop fs -put target/eventdb-1.0.0.jar /hdfs/path/to/store/java-jar/
 3. java -jar target/eventdb-1.0.0.jar createTable tableName initialSplitNumber
-4. java -jar target/eventdb-1.0.0.jar observer org.osv.eventdb.fits.FitsObserver /hdfs/path/to/store/java-jar/eventdb-1.0.0.jar
+4. java -jar target/eventdb-1.0.0.jar observer tableName org.osv.eventdb.fits.FitsObserver /hdfs/path/to/store/java-jar/eventdb-1.0.0.jar
 5. java -jar target/eventdb-1.0.0.jar insertHeFits /path/of/fitsfile tableName
 
 ## Semi-structured data storage

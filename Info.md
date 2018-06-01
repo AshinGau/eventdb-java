@@ -5,7 +5,7 @@
 1. 实验环境hadoop2.8.0，hbase1.2.6
 2. 编译打包: mvn package; 打包生成target/eventdb-1.0.0.jar
 3. 新建eventdb格式的数据表：java -jar target/eventdb-1.0.0.jar createTable tableName initialSplitNumber; createTable是建表命令，tableName是数据表名称，initialSplitNumber指定数据表的初始分区，百亿的数据量一般指定为100，千亿的数据量一般指定为500，万亿的数据量可以指定为2000。
-4. 加载协处理器：首先需要把jar包拷贝到hdfs目录下，假设路径是/hdfs/path/to/store/java-jar/，hadoop fs -put target/eventdb-1.0.0.jar /hdfs/path/to/store/java-jar/; 然后执行加载命令, java -jar target/eventdb-1.0.0.jar observer org.osv.eventdb.fits.FitsObserver /hdfs/path/to/store/java-jar/eventdb-1.0.0.jar
+4. 加载协处理器：首先需要把jar包拷贝到hdfs目录下，假设路径是/hdfs/path/to/store/java-jar/，hadoop fs -put target/eventdb-1.0.0.jar /hdfs/path/to/store/java-jar/; 然后执行加载命令, java -jar target/eventdb-1.0.0.jar observer tableName org.osv.eventdb.fits.FitsObserver /hdfs/path/to/store/java-jar/eventdb-1.0.0.jar
 5. 导入数据：目前完成了高能fits数据0301的导入，执行命令：java -jar target/eventdb-1.0.0.jar insertHeFits /path/of/fitsfile tableName threadNumber。 insertHeFits是导入高能fits数据的命令，/path/of/fitsfile可以是fits文件，也可以是fits文件夹，tableName是之前新建的eventdb数据表, threaderNumber是并行导入的线程数，一般是cpu总线程数的1/10，而且很耗内存，一般一个线程就会占4~5G内存，所以运行的时候确保正确设置了jvm参数。
 6. 查询：目前做了一个查询的shell, 运行java -jar target/eventdb-1.0.0.jar HeFitsQuery tableName进入shell界面，输入quit退出shell界面。查询命令是：time = timeStart ~ timeEnd & [detID | channel | pulse | eventType] = start ~ end | value1, value2 ... 查询的时候必须指定时间区间，目前在detID, channel, pulse, eventType四个属性上做了索引，所以可以组合查询。
 
