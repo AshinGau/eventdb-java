@@ -11,6 +11,7 @@
 	HBase按Key-Value的形式存储数据，以Region为单位存储和管理分区数据。多维索引的实现需要解决数据分片如何映射到HBase的数据分区上，保证索引和原始数据的本地性(Locality)，并解决大数据面临的数据倾斜的共性问题。
 
 3. 实验分析和测试对比  
+	EventDB的吞吐量在200万事例/s，后期需要测试并发性能，并和现有的支持多维度查询测数据库系统如OpentsDB、InfluxDB做性能对比。
 
 ## EventDB架构设计
 HBase只支持Key-Value的检索查询，为了实现万亿级事例的多维度组合查询，EventDB采用了分片的方法管理和检索数据。数据的分片策略可以根据数据的特点制定，北京正负电子对撞机的ROOT数据可以按Run分片，慧眼卫星是时序数据，可以按时间窗口分片。一个分片内的数据，使用位图BitMap对数据进行索引。EventDB接收的事例数据流可以是批处理中的文件流，也可以是实时系统中的socket包。高能物理的实验数据一般以文件的方式存储和管理，例如高能粒子对撞实验数据保存在ROOT格式的文件中，天文卫星实验数据保存在FITS格式的文件中。为了使EventDB具有普适性，输入模块对各种事例输入流做了抽象。  
@@ -26,7 +27,7 @@ EventDB根据模块功能可以抽象为三层:
 	<img src="https://github.com/AshinGau/eventdb-java/blob/master/pics/ConsistentHash.PNG?raw=true" width="600" align=center />  
 
 3. 查询层  
-	查询层根据查询条件，检索满足条件的事例数据。假设一个查询query\<t1~t2, conditions\>，t1~t2指定事例的查询范围，conditions是其它属性的组合条件，通常是一些与或表达式。检索的分片是从getBucket(t1)到getBucket(t2)，记作List\<bucketId\>。根据存储层的设计，每个bucket table存储在特定的region上，bucket table可以通过bucketId在Region.0中找到该对应的region。由于bukcet table的原始数据和索引在一个region中，可以通过协处理器Observer改写HBase的读取接口，让region处理各自分区的数据，最后把各个region的返回结果进行简单的聚合操作，就能得到查询结果。这样，不仅减少了IO，还在region的粒度上实现了并行查询，充分发挥分布式的优越性。
+	查询层根据查询条件，检索满足条件的事例数据。假设一个查询query\<t1\~t2, conditions\>，t1\~t2指定事例的查询范围，conditions是其它属性的组合条件，通常是一些与或表达式。检索的分片是从getBucket(t1)到getBucket(t2)，记作List\<bucketId\>。根据存储层的设计，每个bucket table存储在特定的region上，bucket table可以通过bucketId在Region.0中找到该对应的region。由于bukcet table的原始数据和索引在一个region中，可以通过协处理器Observer改写HBase的读取接口，让region处理各自分区的数据，最后把各个region的返回结果进行简单的聚合操作，就能得到查询结果。这样，不仅减少了IO，还在region的粒度上实现了并行查询，充分发挥分布式的优越性。
 	<img src="https://github.com/AshinGau/eventdb-java/blob/master/pics/Query.PNG?raw=true" width="600" align=center />  
 
 ## 基于HBase的实现
@@ -35,7 +36,7 @@ EventDB根据模块功能可以抽象为三层:
 
 ### 索引层: Bucket Collector & BitMap MDIndex
 **Bucket Collector**负责抽象事例输入流，并根据分片策略汇集一个分片内的事例数据交给**BitMap MDIndex**模块处理。**BitMap MDIndex**接收\<bucketId, List\<event\>\>作为输入，根据事例的属性和属性值构建位图索引，并输出bucket table作为**ConsistentHashRouter**的输入，生成bucket table的伪代码如下：
-```python
+```java
 getBucketTable(bucketId, List<event>):
 	bucketTable = new Map<key, val>
 	// store events in the first row
@@ -55,7 +56,7 @@ getBucketTable(bucketId, List<event>):
 
 ### 存储层: ConsistentHashRouter & RegionHandler
 **ConsistentHashRouter**接收bucket table作为输入，它需要把bucket table映射到region上，实现EventDB存储层的功能。**RegionHandler**监控region的容量，保证bucket table写入HBase的互斥性、原子性等。bucket table写入HBase的伪代码如下：
-```python
+```java
 // get the Node of consistent hash from region.0
 List<Node> = RegionHandler.getNodeFromRegion0
 // build consistent hash
@@ -75,8 +76,8 @@ writeBucketTableToHBase(bucketTalbe):
 ```
 
 ### 查询层: QueryRouter & MD&MP Search
-**QueryRouter**对查询条件query\<t1~t2, conditions\>进行解析，形成针对bucket table的查询query\<List\<bucketId\>, conditions\>。**MD&MP Search**负责把\<bucketId, conditions\>查询条件发送对应的region上，在region上实现conditions的并行查询，最后聚合region的查询结果返回给客户端。伪代码如下：
-```python
+**QueryRouter**对查询条件query\<t1\~t2, conditions\>进行解析，形成针对bucket table的查询query\<List\<bucketId\>, conditions\>。**MD&MP Search**负责把\<bucketId, conditions\>查询条件发送对应的region上，在region上实现conditions的并行查询，最后聚合region的查询结果返回给客户端。伪代码如下：
+```java
 // bucketPolicy is the split policy of EventDB
 query<List<bucketId>, conditions> = bucketPolicy(query<t1~t2, conditions>)
 // get region from region.0
@@ -88,3 +89,5 @@ results = aggregate(List<result>)
 ```
 
 ## 实验分析和测试对比
+EventDB的吞吐量在200万事例/s，后期需要测试并发性能，并和现有的支持多维度查询测数据库系统如OpentsDB、InfluxDB做性能对比。
+<img src="https://github.com/AshinGau/eventdb-java/blob/master/pics/Experiment.PNG?raw=true" width="600" align=center />  
