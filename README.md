@@ -1,15 +1,15 @@
 # eventdb
-> a multidimensional database system for semi-strucured big data.
+> 基于HBase的半结构化数据的多维索引技术
 
-Like most big data systems, eventdb uses fragmentation technology to store and retrieve data. For the robustness and extensibility of the system, eventdb is built on HBase in a non-invasive manner, which means that you can store and retrieve data through original API like java client, thrift .etc.
+半结构化数据没有固定的模式结构，需要存储和检索的数据量往往也达到了万亿条记录，所以传统的关系型数据库无法满足存储和检索需求。HBase是分布式的、可伸缩的非关系型数据库，但只支持Key-Value的检索查询，本文基于HBase实现半结构化数据的多维检索。本论文的研究工作是基于国家重点研发计划“科学大数据管理系统”，运行和测试的数据集是高能物理大数据。高能物理以事例为单位存储一次高能物理实验记录，包含脉冲宽度、轨迹、能量等属性，检索时需要多个维度组合查询。目前，北京正负电子对撞机和慧眼卫星累计的事例数就多达万亿级。
+本论文的主要工作如下：
 
-## Install & Run
-1. mvn package
-2. hadoop fs -put target/eventdb-1.0.0.jar /hdfs/path/to/store/java-jar/
-3. java -jar target/eventdb-1.0.0.jar createTable tableName initialSplitNumber
-4. java -jar target/eventdb-1.0.0.jar observer tableName org.osv.eventdb.fits.FitsObserver /hdfs/path/to/store/java-jar/eventdb-1.0.0.jar
-5. java -jar target/eventdb-1.0.0.jar insertHeFits /path/of/fitsfile tableName
+1. 多维索引的设计  
+	为了实现万亿级事例的检索，和其它大数据系统一样，本文采用分片的方法管理和检索数据。数据的分片策略可以根据数据的特点制定，北京正负电子对撞机的ROOT数据可以按Run分片，慧眼卫星是时序数据，可以按时间窗口分片。一个分片内的数据，使用位图BitMap对数据进行索引。
 
-## Semi-structured data storage
-In a traditional way, a  record of data may store in a single row and each attrribute is stored as a cell, which produces a long table in the big data envirnment and wasts a lot of index storage. Eventdb stores the whole data of a fragmentation in a cell in a single row, and writes the serialized byte stream of these datas as storage. We make a convention that the term **event** denotes a record of the semi-structured data, that's why the system is called eventdb. How to serialize & deserialize of the byte stream of events in a fragementation can be customed by the specific project you participate in.
-I'd like to introduce an uncomplicated and intuitive method
+2. 多维索引的实现  
+	HBase按Key-Value的形式存储数据，以Region为单位存储和管理分区数据。多维索引的实现需要解决数据分片如何映射到HBase的数据分区上，保证索引和原始数据的本地性(Locality)，并解决大数据面临的数据倾斜的共性问题。
+
+3. 实验分析和测试对比  
+
+## 多维索引的设计
