@@ -89,5 +89,5 @@ results = aggregate(List<result>)
 ```
 
 ## 实验分析和测试对比
-EventDB的吞吐量在200万事例/s，后期需要测试并发性能，并和现有的支持多维度查询测数据库系统如OpentsDB、InfluxDB做性能对比。
+EventDB的吞吐量在200万事例/s，后期需要测试并发性能，并和现有的支持多维度查询测数据库系统如OpentsDB、InfluxDB做性能对比。  
 <img src="https://github.com/AshinGau/eventdb-java/blob/master/pics/Experiment.PNG?raw=true" width="600" align=center />  
