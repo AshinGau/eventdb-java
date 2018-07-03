@@ -165,7 +165,7 @@ public class TableAction {
 		HTableDescriptor tdesc = new HTableDescriptor(tableName);
 		HColumnDescriptor cdesc = new HColumnDescriptor(Command.dataBytes);
 		cdesc.setMaxVersions(1).setBlocksize(65536).setBlockCacheEnabled(true).setBloomFilterType(BloomType.ROW)
-				.setTimeToLive(259200).setDataBlockEncoding(DataBlockEncoding.PREFIX_TREE);
+				.setDataBlockEncoding(DataBlockEncoding.PREFIX_TREE);
 		// .setCompressionType(Compression.Algorithm.SNAPPY);
 		// split when the biggest store file grows beyond the maxFileSize
 		tdesc.setValue(HTableDescriptor.SPLIT_POLICY, ConstantSizeRegionSplitPolicy.class.getName());
