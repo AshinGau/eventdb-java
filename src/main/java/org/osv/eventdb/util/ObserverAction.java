@@ -20,6 +20,7 @@ public class ObserverAction {
 		ConfigProperties configProp = new ConfigProperties();
 		hconf.set("hbase.zookeeper.property.clientPort", configProp.getProperty("hbase.zookeeper.property.clientPort"));
 		hconf.set("hbase.zookeeper.quorum", configProp.getProperty("hbase.zookeeper.quorum"));
+		hconf.set("hbase.master", configProp.getProperty("hbase.master"));
 		this.table = table;
 	}
 

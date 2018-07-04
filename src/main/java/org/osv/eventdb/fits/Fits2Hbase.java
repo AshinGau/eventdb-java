@@ -72,6 +72,7 @@ public abstract class Fits2Hbase implements Runnable {
 		hconf.set("hbase.zookeeper.property.clientPort", configProp.getProperty("hbase.zookeeper.property.clientPort"));
 		hconf.set("hbase.zookeeper.quorum", configProp.getProperty("hbase.zookeeper.quorum"));
 		hconf.set("hbase.client.keyvalue.maxsize", configProp.getProperty("hbase.client.keyvalue.maxsize"));
+		hconf.set("hbase.master", configProp.getProperty("hbase.master"));
 		hconn = ConnectionFactory.createConnection(hconf);
 		htable = hconn.getTable(TableName.valueOf(tablename));
 		maxFileThreshold = Long.valueOf(configProp.getProperty("hbase.hregion.filesize.threshold"));

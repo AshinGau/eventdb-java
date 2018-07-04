@@ -69,6 +69,7 @@ public class TableAction {
 		conf.set("hbase.zookeeper.property.clientPort", configProp.getProperty("hbase.zookeeper.property.clientPort"));
 		conf.set("hbase.zookeeper.quorum", configProp.getProperty("hbase.zookeeper.quorum"));
 		conf.set("fs.hdfs.impl", org.apache.hadoop.hdfs.DistributedFileSystem.class.getName());
+		conf.set("hbase.master", configProp.getProperty("hbase.master"));
 		this.tableName = TableName.valueOf(tableName);
 		maxFileSize = Long.valueOf(configProp.getProperty("hbase.hregion.max.filesize"));
 	}
