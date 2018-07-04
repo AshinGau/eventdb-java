@@ -50,6 +50,34 @@ public abstract class FitsQueryFormater {
 
 	protected abstract PropertyValue getPropertyValue(int property, String valueStr);
 
+	public FitsQueryFormater() {
+	}
+
+	public void setTimeRange(double startTime, double endTime) {
+		this.startTime = startTime;
+		this.endTime = endTime;
+		int startTimeBucket = getTimeBucket(startTime);
+		int endTimeBucket = getTimeBucket(endTime);
+		for (int i = startTimeBucket; i <= endTimeBucket; i++)
+			buckets.add(i);
+	}
+
+	public void setPropertyRange(String property, String start, String end) {
+		int propertyID = getPropertyNameID(property);
+		PropertyValue sp = getPropertyValue(propertyID, start);
+		PropertyValue ep = getPropertyValue(propertyID, end);
+		scanOp.put(propertyID, new Pair<PropertyValue, PropertyValue>(sp, ep));
+	}
+
+	public void setPropertyList(String property, List<String> list) {
+		int propertyID = getPropertyNameID(property);
+		List<PropertyValue> byteList = new LinkedList<PropertyValue>();
+		for (String valueItem : list) {
+			byteList.add(getPropertyValue(propertyID, valueItem));
+		}
+		getOp.put(propertyID, byteList);
+	}
+
 	public FitsQueryFormater(String queryString) throws IOException {
 		query = queryString.replace(" ", "");
 		String[] keyvalues = query.split("&");
