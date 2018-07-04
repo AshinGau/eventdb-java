@@ -1,5 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>org.osv.eventdb</groupId>
@@ -11,8 +11,8 @@
 	<url>http://maven.apache.org</url>
 
 	<properties>
-		<hadoop.version>2.7.3</hadoop.version>
-		<hbase.version>1.1.2</hbase.version>
+		<hadoop.version>2.7.3.2.6.5.0-292</hadoop.version>
+		<hbase.version>1.1.2.2.6.5.0-292</hbase.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
@@ -74,11 +74,44 @@
 			</snapshots>
 		</repository>
 		<repository>
-			<id>Cloudera Repository</id>
-			<url>https://repository.cloudera.com/content/repositories/releases/</url>
-			<snapshots>
+			<id>HDPReleases</id>
+			<name>HDP Releases</name>
+			<url>http://repo.hortonworks.com/content/repositories/public</url>
+			<layout>default</layout>
+			<releases>
 				<enabled>true</enabled>
+				<updatePolicy>always</updatePolicy>
+				<checksumPolicy>warn</checksumPolicy>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+				<updatePolicy>never</updatePolicy>
+				<checksumPolicy>fail</checksumPolicy>
 			</snapshots>
+		</repository>
+		<repository>
+			<id>HDPJetty</id>
+			<name>Hadoop Jetty</name>
+			<url>http://repo.hortonworks.com/content/repositories/jetty-hadoop/</url>
+			<layout>default</layout>
+			<releases>
+				<enabled>true</enabled>
+				<updatePolicy>always</updatePolicy>
+				<checksumPolicy>warn</checksumPolicy>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+				<updatePolicy>never</updatePolicy>
+				<checksumPolicy>fail</checksumPolicy>
+			</snapshots>
+		</repository>
+		<repository>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+			<id>central</id>
+			<name>bintray</name>
+			<url>http://jcenter.bintray.com</url>
 		</repository>
 	</repositories>
 	<build>
