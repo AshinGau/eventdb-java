@@ -33,5 +33,33 @@ byte[] events = client.query("time = 178890900 ~ 178891500 & detID = 8 & eventTy
 //返回事例的字节码，高能HeFits，16字节一个事例，events.length / 16就是返回的事例数。
 ```
 
+### 底层api
+```java
+// 配置文件默认读取 /opt/eventdb/config.properties
+// 配置文件对象
+ConfigProperties conp = new ConfigProperties("your/config/path");
+// 生成多维查询数据库对象
+MDQuery md = new MDQuery(conp, "tableName");
+// 生成多维查询客户端
+FitsQueryClient client = new HeQueryClient(md);
+
+// 如果默认用 /opt/eventdb/config.properties 配置文件，可以简单申明
+FitsQueryClient client = new HeQueryClient("tableName");
+
+// 查询条件对象 FitsQueryFormater 可以设置查询条件
+FitsQueryFormater formater = new HeQueryFormater();
+// 时间范围设置，参数是开始时间，和结束时间，doule类型
+formater.setTimeRange(double startTime, double endTime);
+// 设置属性查询条件：范围查询, 参数都是字符串，例子： formater.setPropertyRange("detID", "2", "13")
+formater.setPropertyRange(String property, String start, String end);
+// 设置属性查询条件：范围列表
+// 例子：formater.setPropertyList("detID", new ArrayList(new String[]{"1", "2", "7"}))
+formater.setPropertyList(String property, List<String> list);
+
+// 设置好查询条件以后
+byte[] client.query(formater);
+// 就能得到查询结果
+```
+
 
 

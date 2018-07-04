@@ -9,6 +9,10 @@ public class HeQueryFormater extends FitsQueryFormater {
 		super(queryString);
 	}
 
+	public HeQueryFormater() {
+		super();
+	}
+
 	protected PropertyValue getPropertyValue(int property, String valueStr) {
 		int value = Integer.valueOf(valueStr);
 		return new BytePropertyValue((byte) value);

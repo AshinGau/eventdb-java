@@ -17,6 +17,11 @@ public abstract class FitsQueryClient {
 		this.evtLength = evtLength;
 	}
 
+	public FitsQueryClient(MDQuery mdQuery, int evtLength) {
+		this.mdQuery = mdQuery;
+		this.evtLength = evtLength;
+	}
+
 	public List<byte[]> query(FitsQueryFormater format) throws IOException {
 		LinkedList<byte[]> result = (LinkedList<byte[]>) mdQuery.query(format.buckets, format.getOp, format.scanOp);
 		byte[] evtBin = new byte[evtLength];
