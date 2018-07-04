@@ -21,6 +21,7 @@ public class ObserverAction {
 		hconf.set("hbase.zookeeper.property.clientPort", configProp.getProperty("hbase.zookeeper.property.clientPort"));
 		hconf.set("hbase.zookeeper.quorum", configProp.getProperty("hbase.zookeeper.quorum"));
 		hconf.set("hbase.master", configProp.getProperty("hbase.master"));
+		hconf.set("zookeeper.znode.parent", configProp.getProperty("zookeeper.znode.parent"));
 		this.table = table;
 	}
 

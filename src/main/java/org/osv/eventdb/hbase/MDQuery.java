@@ -38,6 +38,7 @@ public class MDQuery {
 		conf.set("hbase.zookeeper.quorum", configProp.getProperty("hbase.zookeeper.quorum"));
 		conf.set("hbase.client.keyvalue.maxsize", configProp.getProperty("hbase.client.keyvalue.maxsize"));
 		conf.set("hbase.master", configProp.getProperty("hbase.master"));
+		conf.set("zookeeper.znode.parent", configProp.getProperty("zookeeper.znode.parent"));
 		conn = ConnectionFactory.createConnection(conf);
 		table = conn.getTable(TableName.valueOf(Bytes.toBytes(tableName)));
 	}

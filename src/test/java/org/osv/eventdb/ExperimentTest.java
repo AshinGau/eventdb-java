@@ -22,6 +22,7 @@ public class ExperimentTest {
 		conf.set("hbase.zookeeper.quorum", configProp.getProperty("hbase.zookeeper.quorum"));
 		conf.set("fs.hdfs.impl", org.apache.hadoop.hdfs.DistributedFileSystem.class.getName());
 		conf.set("hbase.master", configProp.getProperty("hbase.master"));
+		conf.set("zookeeper.znode.parent", configProp.getProperty("zookeeper.znode.parent"));
 
 		Connection connection = null;
 		Admin admin = null;
