@@ -1,57 +1,50 @@
 package org.osv.eventdb;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
-import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.ConnectionFactory;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.junit.Test;
+import org.osv.eventdb.fits.FitsQueryClient;
+import org.osv.eventdb.fits.FitsQueryFormater;
+import org.osv.eventdb.fits.HeQueryClient;
+import org.osv.eventdb.fits.HeQueryFormater;
+import org.osv.eventdb.fits.util.HeEventDecoder;
+import org.osv.eventdb.hbase.MDQuery;
 import org.osv.eventdb.util.ConfigProperties;
 
 public class ExperimentTest {
 	@Test
 	public void testFunc() throws Exception {
-		// List<byte[]> result = client.query("time = 178430700.79 ~ 178430820.82 &
-		// detID = 1, 2, 3 & channel = 23 ~ 24 & pulse = 35 ~ 64");
-		ConfigProperties configProp = new ConfigProperties();
-		Configuration conf = HBaseConfiguration.create();
-		conf.set("hbase.zookeeper.property.clientPort", configProp.getProperty("hbase.zookeeper.property.clientPort"));
-		conf.set("hbase.zookeeper.quorum", configProp.getProperty("hbase.zookeeper.quorum"));
-		conf.set("fs.hdfs.impl", org.apache.hadoop.hdfs.DistributedFileSystem.class.getName());
-		conf.set("hbase.master", configProp.getProperty("hbase.master"));
-		conf.set("zookeeper.znode.parent", configProp.getProperty("zookeeper.znode.parent"));
+		// 配置文件默认读取 /opt/eventdb/config.properties
+		// 配置文件对象
+		ConfigProperties conp = new ConfigProperties("/opt/eventdb/config.properties");
+		// 生成多维查询数据库对象
+		MDQuery md = new MDQuery(conp, "tableName");
+		// 生成多维查询客户端
+		FitsQueryClient client = new HeQueryClient(md);
 
-		Connection connection = null;
-		Admin admin = null;
+		// 查询条件对象 FitsQueryFormater 可以设置查询条件
+		FitsQueryFormater formater = new HeQueryFormater();
+		// 时间范围设置，参数是开始时间，和结束时间，doule类型
+		formater.setTimeRange(178797000.0, 178797005.0);
+		// 设置属性查询条件：范围查询, 参数都是字符串，例子： formater.setPropertyRange("detID", "2", "13")
+		formater.setPropertyRange("channel", "2", "120");
+		// 设置属性查询条件：范围列表
+		List<String> detID = new ArrayList<String>();
+		detID.add("1");
+		detID.add("3");
+		detID.add("5");
+		detID.add("7");
+		detID.add("9");
+		formater.setPropertyList("detID", detID);
 
-		try {
-			connection = ConnectionFactory.createConnection(conf);
-			admin = connection.getAdmin();
+		List<byte[]> result = client.query(formater);
+		List<HeEventDecoder.He> heList = HeEventDecoder.decode(result);
 
-			String tableName = "testTable";
-
-			if (!admin.isTableAvailable(TableName.valueOf(tableName))) {
-				HTableDescriptor hbaseTable = new HTableDescriptor(TableName.valueOf(tableName));
-				hbaseTable.addFamily(new HColumnDescriptor("value"));
-				admin.createTable(hbaseTable);
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
-			try {
-				if (admin != null) {
-					admin.close();
-				}
-
-				if (connection != null && !connection.isClosed()) {
-					connection.close();
-				}
-			} catch (Exception e2) {
-				e2.printStackTrace();
-			}
+		for (HeEventDecoder.He he : heList) {
+			System.out.printf("%f\t%d\t%d\t%d\t%d\n", he.time, he.detID & 0x00ff, he.channel & 0x00ff,
+					he.pulse & 0x00ff, he.eventType & 0x00ff);
 		}
+		System.out.printf("time\t\t\tdetID\tchannel\tpulse\teventType\n");
 	}
 }
