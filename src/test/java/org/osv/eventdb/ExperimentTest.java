@@ -19,7 +19,7 @@ public class ExperimentTest {
 		// 配置文件对象
 		ConfigProperties conp = new ConfigProperties("/opt/eventdb/config.properties");
 		// 生成多维查询数据库对象
-		MDQuery md = new MDQuery(conp, "tableName");
+		MDQuery md = new MDQuery(conp, "HeFits");
 		// 生成多维查询客户端
 		FitsQueryClient client = new HeQueryClient(md);
 
