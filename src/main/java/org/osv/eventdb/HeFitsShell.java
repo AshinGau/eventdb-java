@@ -37,8 +37,10 @@ public class HeFitsShell {
 			while (true) {
 				if (sc.hasNextLine()) {
 					String command = sc.nextLine().trim();
-					if (command.equals("quit"))
+					if (command.equals("quit")){
+						sc.close();
 						return;
+					}
 					long startTime = System.currentTimeMillis();
 					List<byte[]> result = client.query(command);
 					long endTime = System.currentTimeMillis();
