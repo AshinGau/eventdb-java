@@ -6,4 +6,4 @@ for jar in $TARGETDIR/lib/*.jar
 do
 	JARS=$JARS:$jar
 done
-java -cp $JARS org.osv.eventdb.Run $@
+java -Xms5120M -Xmx10240M -cp $JARS org.osv.eventdb.Run $@

@@ -57,8 +57,14 @@ formater.setPropertyRange(String property, String start, String end);
 formater.setPropertyList(String property, List<String> list);
 
 // 设置好查询条件以后
-List<byte[]> client.query(formater);
+List<byte[]> result = client.query(formater);
 // 就能得到查询结果
+
+// 解析
+import org.osv.eventdb.fits.util.HeEventDecoder;
+List<HeEventDecoder.He> heList = HeEventDecoder.decode(result);
+//HeEventDecoder.He 查看 org.osv.eventdb.fits.util.HeEventDecoder.He
+
 ```
 
 
