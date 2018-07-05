@@ -2,6 +2,7 @@ package org.osv.eventdb;
 
 import org.osv.eventdb.fits.FitsFileSet;
 import org.osv.eventdb.fits.HeFits2Hbase;
+import org.osv.eventdb.fits.util.RestServer;
 import org.osv.eventdb.hbase.TableAction;
 import org.osv.eventdb.util.ObserverAction;
 
@@ -41,6 +42,9 @@ public class Run {
 
 		} else if (args[0].equals("HeFitsQuery")) {
 			HeFitsShell.console(args[1]);
+
+		} else if (args[0].equals("server")) {
+			RestServer.runAtPort(new Integer(args[1]));
 		}
 	}
 }
