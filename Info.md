@@ -67,5 +67,8 @@ List<HeEventDecoder.He> heList = HeEventDecoder.decode(result);
 
 ```
 
-
-
+### RestFul API
+启动http服务  
+./eventdb.sh server 8081  
+rest api例子: http://host:8081/he/tableName?time=178797000~178797005&detID=1,2 返回csv格式查询结果  
+http://host:8081 为网址可视化界面
