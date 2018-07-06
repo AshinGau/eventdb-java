@@ -10,24 +10,134 @@
 <body>
 <script>
     $(function () {
+		var fitsChart = echarts.init(document.getElementById('chartShow'));
         var $timeStart = $("#timeStart"),
             $timeEnd = $("#timeEnd"),
             $detID = $("#detID"),
             $channel = $("#channel"),
             $pulse = $("#pulse"),
             $eventType = $("#eventType");
+		var option = {
+			title: {
+				text: 'fits high energy distribution diagram'
+			},
+			tooltip : {
+				trigger: 'axis',
+				axisPointer: {
+					type: 'cross',
+					label: {
+						backgroundColor: '#6a7985'
+					}
+				}
+			},
+			legend: {
+				data:['detID','channel','pulseWidth','eventType']
+			},
+			dataZoom: [
+				{   // 这个dataZoom组件，默认控制x轴。
+					type: 'slider', // 这个 dataZoom 组件是 slider 型 dataZoom 组件
+					start: 10,      // 左边在 10% 的位置。
+					end: 40         // 右边在 60% 的位置。
+				},
+				{   // 这个dataZoom组件，也控制x轴。
+					type: 'inside', // 这个 dataZoom 组件是 inside 型 dataZoom 组件
+					start: 10,      // 左边在 10% 的位置。
+					end: 40         // 右边在 60% 的位置。
+				}
+			],
+			toolbox: {
+				feature: {
+					saveAsImage: {}
+				}
+			},
+			grid: {
+				left: '3%',
+				right: '4%',
+				bottom: '3%',
+				containLabel: true
+			},
+			xAxis : [
+				{
+					type : 'category',
+					boundaryGap : false,
+					axisLabel: {
+						formatter: function(value, idx) {
+							var dts = value.split(" ");
+							return idx == 0? value: dts[dts.length - 1];
+						}
+					}
+					// data: []
+				}
+			],
+			yAxis : [
+				{
+					type : 'value'
+				}
+			],
+			series : [
+				{
+					name:'detID',
+					type:'line',
+					areaStyle: {normal: {}},
+					// data: []
+				},
+				{
+					name:'channel',
+					type:'line',
+					areaStyle: {normal: {}},
+				},
+				{
+					name:'pulseWidth',
+					type:'line',
+					areaStyle: {normal: {}},
+				},
+				{
+					name:'eventType',
+					type:'line',
+					areaStyle: {normal: {}},
+				}
+			]
+		}; 
         $("#fitsSearch").click(function () {
             var query = "time=" + $timeStart.val() + "~" + $timeEnd.val()
-                + "detID=" + $detID.val()
-                + "channel=" + $channel.val()
-                + "pulse=" + $pulse.val()
-                + "eventType=" + $eventType.val();
+                + "&detID=" + $detID.val()
+                + "&channel=" + $channel.val()
+                + "&pulse=" + $pulse.val()
+                + "&eventType=" + $eventType.val();
+			query = query.replace(/\s+/g,"");
             $.ajax({
-                url: "http://10.0.88.33:8081/he/HeFits?" + query,
+                url: "/he/HeFits?" + query,
                 type: "GET",
                 dataType: "text",
                 success: function (data) {
-                    console.log(data);
+                   	var time = [],
+						detID = [],
+						channel = [],
+						pulse = [],
+						eventType = [];
+					var lines = data.split("\n");
+					var length = lines.length;
+					var zoomend = 100 / length * 30;
+					zoomend = zoomend < 10? 10: zoomend;
+					zoomend = zoomend > 90? 50: zoomend;
+					zoomend += 10;
+					option.dataZoom[0].end = zoomend;
+					option.dataZoom[1].end = zoomend;
+					for(var i = 1; i < length; i++){
+						var cols = lines[i].split(",");
+						var dt = new Date((+ cols[0] + 1325376000) * 1000);
+						time.push(dt.getFullYear()+"/"+(dt.getMonth()+1)+"/"+dt.getDate()+" "+dt.getHours()+":"+dt.getMinutes()+":"+dt.getSeconds());
+						detID.push(+cols[1]);
+						channel.push(+cols[2]);
+						pulse.push(+cols[3]);
+						eventType.push(+cols[4]);
+					}
+					option.xAxis[0].data = time;
+					option.series[0].data = detID;
+					option.series[1].data = channel;
+					option.series[2].data = pulse;
+					option.series[3].data = eventType;
+					fitsChart.setOption(option);
                 }
             })
         })
@@ -51,7 +161,7 @@
     </div>
     <div class="row">
         <div class="chart">
-            <div id="chartShow"></div>
+            <div id="chartShow" style="width: 1200px; height: 742px;"></div>
         </div>
     </div>
 </div>
