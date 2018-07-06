@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title> 事例数据库EventDB - 面向高能物理的大数据管理系统</title>
+    <script src="/static/js/jquery-3.2.1.min.js"></script>
+    <script src="/static/js/echarts.common.min.js"></script>
+</head>
+<body>
+<script>
+
+</script>
+<div class="container">
+    <div class="row">
+        <span>time:</span>
+        <input type="text" name="timeStart"/>
+        <span>-</span>
+        <input type="text" name="timeEnd"/>
+        <span>detID:</span>
+        <input type="text" name="detID" value="0 ~ 255"/>
+        <span>channel:</span>
+        <input type="text" name="channel" value="0 ~ 255"/>
+        <span>pulse:</span>
+        <input type="text" name="pulse" value="0 ~ 255"/>
+        <span>eventType:</span>
+        <input type="text" name="eventType" value="0 ~ 255"/>
+        <button type="button" id="fitsSearch">search</button>
+    </div>
+    <div class="row">
+        <div class="chart">
+            <div id="chartShow"></div>
+        </div>
+    </div>
+</div>
+<div class="footer">
+    <p>© 2017<a href="">xjtuosv.com</a> XJTU OSV EventDBb</p>
+</div>
+</body>
+
+</html>
