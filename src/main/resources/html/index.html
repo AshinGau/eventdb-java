@@ -9,22 +9,44 @@
 </head>
 <body>
 <script>
-
+    $(function () {
+        var $timeStart = $("#timeStart"),
+            $timeEnd = $("#timeEnd"),
+            $detID = $("#detID"),
+            $channel = $("#channel"),
+            $pulse = $("#pulse"),
+            $eventType = $("#eventType");
+        $("#fitsSearch").click(function () {
+            var query = "time=" + $timeStart.val() + "~" + $timeEnd.val()
+                + "detID=" + $detID.val()
+                + "channel=" + $channel.val()
+                + "pulse=" + $pulse.val()
+                + "eventType=" + $eventType.val();
+            $.ajax({
+                url: "http://10.0.88.33:8081/he/HeFits?" + query,
+                type: "GET",
+                dataType: "text",
+                success: function (data) {
+                    console.log(data);
+                }
+            })
+        })
+    })
 </script>
 <div class="container">
     <div class="row">
         <span>time:</span>
-        <input type="text" name="timeStart"/>
+        <input type="text" id="timeStart" name="timeStart" value="178797000"/>
         <span>-</span>
-        <input type="text" name="timeEnd"/>
+        <input type="text" id="timeEnd" name="timeEnd" value="178797005"/>
         <span>detID:</span>
-        <input type="text" name="detID" value="0 ~ 255"/>
+        <input type="text" id="detID" name="detID" value="1, 7"/>
         <span>channel:</span>
-        <input type="text" name="channel" value="0 ~ 255"/>
+        <input type="text" id="channel" name="channel" value="12 ~ 20"/>
         <span>pulse:</span>
-        <input type="text" name="pulse" value="0 ~ 255"/>
+        <input type="text" id="pulse" name="pulse" value="0 ~ 255"/>
         <span>eventType:</span>
-        <input type="text" name="eventType" value="0 ~ 255"/>
+        <input type="text" id="eventType" name="eventType" value="0 ~ 255"/>
         <button type="button" id="fitsSearch">search</button>
     </div>
     <div class="row">
