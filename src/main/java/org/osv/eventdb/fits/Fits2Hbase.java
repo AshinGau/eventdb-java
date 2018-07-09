@@ -143,7 +143,7 @@ public abstract class Fits2Hbase implements Runnable {
 					if (preBucket != 0) {
 						// put
 						put(bucketEvts, preBucket);
-						logger.info(String.format("(%.2f%%)Finished to insert timeBucket: %s - %d\n",
+						logger.info(String.format("(%.2f%%)Finished to insert timeBucket: %s - %d",
 								fits.getPercentDone() * 100.0, currFile.getAbsolutePath(), preBucket));
 						bucketEvts.clear();
 					}
@@ -151,7 +151,7 @@ public abstract class Fits2Hbase implements Runnable {
 					bucketEvts.add(he);
 				}
 			}
-			logger.info(String.format("(%.2f%%)Finished to insert fits file: %s\n", fits.getPercentDone() * 100.0,
+			logger.info(String.format("(%.2f%%)Finished to insert fits file: %s", fits.getPercentDone() * 100.0,
 					currFile.getAbsolutePath()));
 			fits.incDone();
 			ff.close();
@@ -159,7 +159,7 @@ public abstract class Fits2Hbase implements Runnable {
 		// put remain
 		put(bucketEvts, timeBucket);
 		bucketEvts.clear();
-		logger.info(String.format("(%.2f%%)Finished to insert the remaining bucket - %d\n",
+		logger.info(String.format("(%.2f%%)Finished to insert the remaining bucket - %d",
 				fits.getPercentDone() * 100.0, timeBucket));
 	}
 
@@ -230,7 +230,7 @@ public abstract class Fits2Hbase implements Runnable {
 							Command.valueBytes, 1);
 					tableAction.createRegion(Bytes.toBytes(regionPrefixNew),
 							Bytes.toBytes((int) (regionPrefixNew + 1)));
-					logger.info(String.format("mounted a new region: %s\n", regionPrefixNew));
+					logger.info(String.format("mounted a new region: %s", regionPrefixNew));
 					// get new region prefix
 					regionPrefixInt = regionPrefixNew;
 					regionPrefix = Bytes.toBytes(regionPrefixInt);
@@ -260,7 +260,7 @@ public abstract class Fits2Hbase implements Runnable {
 				startTime = oldStartTime;
 				putCommand = Command.appendInt;
 			}
-			logger.info(String.format("(%.2f%%)has to fix(%d) the timeBucket: %d\n", fits.getPercentDone() * 100.0,
+			logger.info(String.format("(%.2f%%)has to fix(%d) the timeBucket: %d", fits.getPercentDone() * 100.0,
 					putCommand, timeBucket));
 		}
 
@@ -313,7 +313,7 @@ public abstract class Fits2Hbase implements Runnable {
 				+ regionInfo.getEncodedName());
 		long size = hdfs.getContentSummary(regionDir).getLength();
 		double sizem = size / (double) (1024 * 1024);
-		logger.info(String.format("region %s size: %fM\n", regionInfo.getRegionNameAsString(), sizem));
+		logger.info(String.format("region %s size: %fM", regionInfo.getRegionNameAsString(), sizem));
 
 		return size > maxFileThreshold;
 	}
