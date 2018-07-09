@@ -3,9 +3,7 @@ package org.osv.eventdb.fits;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -29,6 +27,7 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.IdLock;
+import org.apache.log4j.Logger;
 import org.osv.eventdb.event.PropertyValue;
 import org.osv.eventdb.hbase.Command;
 import org.osv.eventdb.hbase.TableAction;
@@ -47,11 +46,12 @@ public abstract class Fits2Hbase implements Runnable {
 	protected ConsistentHashRouter conHashRouter;
 	protected Thread thread;
 	protected int splits;
-	protected SimpleDateFormat timeformat;
 	protected long maxFileThreshold;
 	protected ConfigProperties configProp;
 	protected FileSystem hdfs;
 	protected double timeBucketInterval;
+
+	private static Logger logger = Logger.getLogger(Fits2Hbase.class);
 
 	public Fits2Hbase(FitsFileSet fits, ConfigProperties configProp, String tablename, int evtLength) throws Exception {
 		init(fits, configProp, tablename, evtLength);
@@ -90,8 +90,6 @@ public abstract class Fits2Hbase implements Runnable {
 		config.set("fs.hdfs.impl", org.apache.hadoop.hdfs.DistributedFileSystem.class.getName());
 		this.hdfs = FileSystem.get(new URI(configProp.getProperty("fs.defaultFS")), config,
 				configProp.getProperty("fs.user"));
-
-		timeformat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
 	}
 
 	public void close() throws IOException {
@@ -103,7 +101,7 @@ public abstract class Fits2Hbase implements Runnable {
 		try {
 			insertFitsFile();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("failed to insert fits file", e);
 		}
 	}
 
@@ -117,9 +115,7 @@ public abstract class Fits2Hbase implements Runnable {
 		return thread;
 	}
 
-	protected abstract FitsFile getFitsFile(String filename);
-
-	protected abstract FitsEvent getEvt(byte[] evtBin) throws IOException;
+	protected abstract FitsEvent getEvt(byte[] evtBin);
 
 	public void insertFitsFile() throws Exception {
 		int preBucket = 0;
@@ -128,8 +124,18 @@ public abstract class Fits2Hbase implements Runnable {
 		File currFile = null;
 		FitsFile ff = null;
 		while ((currFile = fits.nextFile()) != null) {
-			ff = getFitsFile(currFile.getAbsolutePath());
-			for (FitsEvent he : ff) {
+			ff = new FitsFile(currFile.getAbsolutePath());
+			if (ff.evtLength != evtLength) {
+				logger.error(String.format("%s event length error", currFile.getAbsoluteFile()));
+				continue;
+			}
+			for (byte[] evtBytes : ff) {
+				if (evtBytes == null) {
+					logger.error(String.format("%s event is null, maybe the fits file is incomplete",
+							currFile.getAbsoluteFile()));
+					break;
+				}
+				FitsEvent he = getEvt(evtBytes);
 				timeBucket = he.getBucketID();
 				if (preBucket == timeBucket) {
 					bucketEvts.add(he);
@@ -137,25 +143,24 @@ public abstract class Fits2Hbase implements Runnable {
 					if (preBucket != 0) {
 						// put
 						put(bucketEvts, preBucket);
-						System.out.printf("(%.2f%%)%s Finished to insert timeBucket: %s - %d\n",
-								fits.getPercentDone() * 100.0, timeformat.format(new Date()),
-								currFile.getAbsolutePath(), preBucket);
+						logger.info(String.format("(%.2f%%)Finished to insert timeBucket: %s - %d\n",
+								fits.getPercentDone() * 100.0, currFile.getAbsolutePath(), preBucket));
 						bucketEvts.clear();
 					}
 					preBucket = timeBucket;
 					bucketEvts.add(he);
 				}
 			}
-			System.out.printf("(%.2f%%)%s Finished to insert fits file: %s\n", fits.getPercentDone() * 100.0,
-					timeformat.format(new Date()), currFile.getAbsolutePath());
+			logger.info(String.format("(%.2f%%)Finished to insert fits file: %s\n", fits.getPercentDone() * 100.0,
+					currFile.getAbsolutePath()));
 			fits.incDone();
 			ff.close();
 		}
 		// put remain
 		put(bucketEvts, timeBucket);
 		bucketEvts.clear();
-		System.out.printf("(%.2f%%)%s Finished to insert the remaining bucket - %d\n", fits.getPercentDone() * 100.0,
-				timeformat.format(new Date()), timeBucket);
+		logger.info(String.format("(%.2f%%)Finished to insert the remaining bucket - %d\n",
+				fits.getPercentDone() * 100.0, timeBucket));
 	}
 
 	private void put(List<FitsEvent> bucketEvts, int timeBucket) throws Exception {
@@ -225,7 +230,7 @@ public abstract class Fits2Hbase implements Runnable {
 							Command.valueBytes, 1);
 					tableAction.createRegion(Bytes.toBytes(regionPrefixNew),
 							Bytes.toBytes((int) (regionPrefixNew + 1)));
-					System.out.printf("%s mounted a new region: %s\n", timeformat.format(new Date()), regionPrefixNew);
+					logger.info(String.format("mounted a new region: %s\n", regionPrefixNew));
 					// get new region prefix
 					regionPrefixInt = regionPrefixNew;
 					regionPrefix = Bytes.toBytes(regionPrefixInt);
@@ -255,8 +260,8 @@ public abstract class Fits2Hbase implements Runnable {
 				startTime = oldStartTime;
 				putCommand = Command.appendInt;
 			}
-			System.out.printf("(%.2f%%)%s has to fix(%d) the timeBucket: %d\n", fits.getPercentDone() * 100.0,
-					timeformat.format(new Date()), putCommand, timeBucket);
+			logger.info(String.format("(%.2f%%)has to fix(%d) the timeBucket: %d\n", fits.getPercentDone() * 100.0,
+					putCommand, timeBucket));
 		}
 
 		// exists old bucket
@@ -308,7 +313,7 @@ public abstract class Fits2Hbase implements Runnable {
 				+ regionInfo.getEncodedName());
 		long size = hdfs.getContentSummary(regionDir).getLength();
 		double sizem = size / (double) (1024 * 1024);
-		System.out.printf("region %s size: %fM\n", regionInfo.getRegionNameAsString(), sizem);
+		logger.info(String.format("region %s size: %fM\n", regionInfo.getRegionNameAsString(), sizem));
 
 		return size > maxFileThreshold;
 	}

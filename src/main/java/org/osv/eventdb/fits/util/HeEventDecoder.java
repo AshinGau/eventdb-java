@@ -23,6 +23,12 @@ public class HeEventDecoder {
 				eventDecoder.readByte();
 			eventType = eventDecoder.readByte();
 		}
+
+		@Override
+		public String toString() {
+			return String.format("%f,%d,%d,%d,%d\n", time, detID & 0x00ff, channel & 0x00ff, pulse & 0x00ff,
+					eventType & 0x00ff);
+		}
 	}
 
 	public static List<He> decode(List<byte[]> result) {

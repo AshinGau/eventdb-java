@@ -1,7 +1,5 @@
 package org.osv.eventdb.fits;
 
-import java.io.IOException;
-
 import org.osv.eventdb.util.ConfigProperties;
 
 public class HeFits2Hbase extends Fits2Hbase {
@@ -14,12 +12,7 @@ public class HeFits2Hbase extends Fits2Hbase {
 	}
 
 	@Override
-	protected FitsEvent getEvt(byte[] evtBin) throws IOException {
+	protected FitsEvent getEvt(byte[] evtBin) {
 		return new HeEvent(evtBin);
-	}
-
-	@Override
-	protected FitsFile getFitsFile(String filename) {
-		return new HeFitsFile(filename);
 	}
 }

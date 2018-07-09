@@ -1,92 +1,79 @@
 package org.osv.eventdb.fits;
 
+import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public abstract class FitsFile implements Iterable<FitsEvent> {
-	private int rowStart;
-	private int evtStart;
-	private int evtLength;
-	private int rowCount;
-	private FileInputStream fin;
-	private String filepath;
-	private int bufferSize = 1024 * 1024;
-	private byte[] buffer;
-	private int evtStartIndex;
-	private byte[] evtBin;
+import nom.tam.fits.BinaryTableHDU;
+import nom.tam.fits.Fits;
+import nom.tam.fits.FitsException;
+import nom.tam.fits.Header;
 
-	public FitsFile(String filepath, int rowStart, int evtStart, int evtLength) {
-		this.filepath = filepath;
-		this.rowStart = rowStart;
-		this.evtStart = evtStart;
-		this.evtLength = evtLength;
-	}
+public class FitsFile implements Iterable<byte[]> {
+	public int rows;
+	public int evtLength;
+	public long tstart;
+	public long tstop;
+	public String dateStart;
+	public String dateStop;
+	public String type;
+	private long offset;
+	private BufferedInputStream bufIn;
+	private String file;
 
-	public void setBufferSize(int size) {
-		bufferSize = size;
+	public FitsFile(String filepath) throws FitsException, IOException {
+		this.file = filepath;
+		Fits fits = new Fits(filepath);
+		BinaryTableHDU hdu = (BinaryTableHDU) fits.getHDU(1);
+
+		Header header = hdu.getHeader();
+		rows = header.getIntValue("NAXIS2");
+		evtLength = header.getIntValue("NAXIS1");
+		tstart = header.getBigIntegerValue("TSTART").longValue();
+		tstop = header.getBigIntegerValue("TSTOP").longValue();
+		dateStart = header.getStringValue("DATE-OBS").trim();
+		dateStop = header.getStringValue("DATE-END").trim();
+		type = header.getStringValue("INSTRUME").trim();
+
+		offset = hdu.getData().getFileOffset();
+
+		fits.close();
 	}
 
 	public void close() throws IOException {
-		fin.close();
-		buffer = null;
+		bufIn.close();
 	}
 
-	protected abstract FitsEvent getEvt(byte[] evtBin);
-
-	private void readToBuffer() {
+	public Iterator<byte[]> iterator() {
 		try {
-			if ((evtStartIndex + bufferSize) < rowCount) {
-				evtStartIndex += bufferSize;
-				int remain = rowCount - evtStartIndex;
-				int readSize = remain > bufferSize ? bufferSize : remain;
-				fin.read(buffer, 0, readSize * evtLength);
-			}
+			bufIn = new BufferedInputStream(new FileInputStream(file));
+			bufIn.skip(offset);
 		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-
-	public Iterator<FitsEvent> iterator() {
-		try {
-			fin = new FileInputStream(filepath);
-			// get row number
-			fin.skip(rowStart);
-			byte[] brows = new byte[22];
-			fin.read(brows);
-			String rows = new String(brows);
-			rowCount = Integer.valueOf(rows.trim());
-			// seek at the beginning of event array
-			fin.skip(evtStart - rowStart - 22);
-
-			buffer = new byte[bufferSize * evtLength];
-			evtStartIndex = -bufferSize;
-			readToBuffer();
-		} catch (IOException e) {
-			e.printStackTrace();
+			return null;
 		}
 		return new EvtIterator();
 	}
 
-	private class EvtIterator implements Iterator<FitsEvent> {
+	private class EvtIterator implements Iterator<byte[]> {
 		private int index = 0;
 
 		public boolean hasNext() {
-			return index != rowCount;
+			return index != rows;
 		}
 
-		public FitsEvent next() throws NoSuchElementException {
-			if (index == rowCount)
+		public byte[] next() throws NoSuchElementException {
+			if (index == rows)
 				throw new NoSuchElementException("Has read to the end of fits file");
-			if (index == (evtStartIndex + bufferSize))
-				readToBuffer();
-			int start = (index - evtStartIndex) * evtLength;
-			evtBin = new byte[evtLength];
-			for (int i = 0; i < evtLength; i++)
-				evtBin[i] = buffer[start + i];
-			index++;
-			return getEvt(evtBin);
+			byte[] evt = new byte[evtLength];
+			try {
+				bufIn.read(evt);
+				index++;
+				return evt;
+			} catch (IOException e) {
+				return null;
+			}
 		}
 	}
 }
