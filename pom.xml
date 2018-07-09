@@ -11,8 +11,10 @@
 	<url>http://maven.apache.org</url>
 
 	<properties>
-		<hadoop.version>2.7.6</hadoop.version>
-		<hbase.version>1.2.6</hbase.version>
+		<hadoop.version>2.6.0-cdh5.8.2</hadoop.version>
+		<hbase.version>1.2.0-cdh5.8.2</hbase.version>
+		<spark.version>1.6.0-cdh5.8.2</spark.version>
+		<scala.version>2.12.5</scala.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
@@ -89,6 +91,13 @@
 		<repository>
 			<id>sonatype-snapshots</id>
 			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+		<repository>
+			<id>Cloudera Repository</id>
+			<url>https://repository.cloudera.com/content/repositories/releases/</url>
 			<snapshots>
 				<enabled>true</enabled>
 			</snapshots>
