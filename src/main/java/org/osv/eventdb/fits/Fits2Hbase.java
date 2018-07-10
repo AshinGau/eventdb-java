@@ -141,12 +141,14 @@ public abstract class Fits2Hbase implements Runnable {
 			newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("dateStop"), Bytes.toBytes(ff.dateStop));
 			newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("type"), Bytes.toBytes(ff.type));
 			eventMetaTable.put(newFilePut);
-			eventMetaTable.incrementColumnValue(Bytes.toBytes(tableNameStr + "#files"), Command.dataBytes,
-					Command.valueBytes, 1);
-			eventMetaTable.incrementColumnValue(Bytes.toBytes(tableNameStr + "#events"), Command.dataBytes,
-					Command.valueBytes, (long) ff.rows);
 			eventMetaTable.incrementColumnValue(Bytes.toBytes("table#" + tableNameStr), Command.dataBytes,
 					Bytes.toBytes("events"), (long) ff.rows);
+			eventMetaTable.incrementColumnValue(Bytes.toBytes("table#" + tableNameStr), Command.dataBytes,
+					Bytes.toBytes("files"), 1);
+			eventMetaTable.incrementColumnValue(Bytes.toBytes("total"), Command.dataBytes, Bytes.toBytes("events"),
+					(long) ff.rows);
+			eventMetaTable.incrementColumnValue(Bytes.toBytes("total"), Command.dataBytes, Bytes.toBytes("files"),
+					(long) ff.rows);
 
 			for (byte[] evtBytes : ff) {
 				if (evtBytes == null) {

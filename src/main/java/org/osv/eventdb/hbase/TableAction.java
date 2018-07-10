@@ -9,6 +9,7 @@ import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HRegionInfo;
@@ -21,6 +22,7 @@ import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Delete;
+import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -160,7 +162,6 @@ public class TableAction {
 		Admin admin = conn.getAdmin();
 		// get meta table
 		Table metaTable = conn.getTable(TableName.META_TABLE_NAME);
-		Table eventMetaTable = conn.getTable(TableName.valueOf(configProp.getProperty("fits.meta.table")));
 		String name = tableName.getNameAsString();
 		String namespace = tableName.getNamespaceAsString();
 		// hdfs directory path
@@ -221,15 +222,7 @@ public class TableAction {
 		thisTable.incrementColumnValue(Bytes.add(Command.metaZeroBytes, Command.metaRegionsBytes), Command.dataBytes,
 				Command.valueBytes, initSplit);
 
-		eventMetaTable.incrementColumnValue(Bytes.toBytes("table#" + tableName.getNameAsString()), Command.dataBytes,
-				Bytes.toBytes("events"), 0);
-		eventMetaTable.incrementColumnValue(Bytes.toBytes(tableName.getNameAsString() + "#files"), Command.dataBytes,
-				Command.valueBytes, 0);
-		eventMetaTable.incrementColumnValue(Bytes.toBytes(tableName.getNameAsString() + "#events"), Command.dataBytes,
-				Command.valueBytes, 0);
-
 		thisTable.close();
-		eventMetaTable.close();
 		admin.close();
 		metaTable.close();
 		conn.close();
@@ -249,6 +242,13 @@ public class TableAction {
 			admin.deleteTable(tableName);
 		}
 		Table eventMetaTable = con.getTable(TableName.valueOf(configProp.getProperty("fits.meta.table")));
+		Get delTableGet = new Get(Bytes.toBytes("table#" + tableName.getNameAsString()));
+		Result delRow = eventMetaTable.get(delTableGet);
+		long delEvents = Bytes
+				.toLong(CellUtil.cloneValue(delRow.getColumnLatestCell(Command.dataBytes, Bytes.toBytes("events"))));
+		long delFiles = Bytes
+				.toLong(CellUtil.cloneValue(delRow.getColumnLatestCell(Command.dataBytes, Bytes.toBytes("files"))));
+
 		List<Delete> dels = new LinkedList<Delete>();
 		dels.add(new Delete(Bytes.toBytes("table#" + tableName.getNameAsString())));
 		Scan prefixScan = new Scan();
@@ -257,7 +257,11 @@ public class TableAction {
 		for (Result result : results)
 			dels.add(new Delete(result.getRow()));
 		eventMetaTable.delete(dels);
-		System.out.printf("success to delete table %s\n", tableName.getNameAsString());
+
+		eventMetaTable.incrementColumnValue(Bytes.toBytes("total"), Command.dataBytes, Bytes.toBytes("events"),
+				-delEvents);
+		eventMetaTable.incrementColumnValue(Bytes.toBytes("total"), Command.dataBytes, Bytes.toBytes("files"),
+				-delFiles);
 
 		admin.close();
 		con.close();
