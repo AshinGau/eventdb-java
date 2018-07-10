@@ -12,7 +12,7 @@ import java.io.FileInputStream;
  * reads ${projectDirctory}/config.properties as its default configuration file.
  */
 public class ConfigProperties {
-	private String configFile = "/opt/eventdb/config.properties";
+	private String configFile = "config.properties";
 	private Properties prop;
 
 	public ConfigProperties() throws IOException {
