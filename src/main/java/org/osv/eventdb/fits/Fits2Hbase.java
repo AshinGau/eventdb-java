@@ -123,12 +123,31 @@ public abstract class Fits2Hbase implements Runnable {
 		List<FitsEvent> bucketEvts = new LinkedList<FitsEvent>();
 		File currFile = null;
 		FitsFile ff = null;
+		Table eventMetaTable = hconn.getTable(TableName.valueOf(configProp.getProperty("fits.meta.table")));
 		while ((currFile = fits.nextFile()) != null) {
 			ff = new FitsFile(currFile.getAbsolutePath());
 			if (ff.evtLength != evtLength) {
 				logger.error(String.format("%s event length error", currFile.getAbsoluteFile()));
 				continue;
 			}
+
+			String tableNameStr = htable.getName().getNameAsString();
+			Put newFilePut = new Put(Bytes.toBytes(tableNameStr + "#" + currFile.getName()));
+			newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("rows"), Bytes.toBytes(ff.rows));
+			newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("evtLength"), Bytes.toBytes(ff.evtLength));
+			newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("tstart"), Bytes.toBytes(ff.tstart));
+			newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("tstop"), Bytes.toBytes(ff.tstop));
+			newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("dateStart"), Bytes.toBytes(ff.dateStart));
+			newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("dateStop"), Bytes.toBytes(ff.dateStop));
+			newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("type"), Bytes.toBytes(ff.type));
+			eventMetaTable.put(newFilePut);
+			eventMetaTable.incrementColumnValue(Bytes.toBytes(tableNameStr + "#files"), Command.dataBytes,
+					Command.valueBytes, 1);
+			eventMetaTable.incrementColumnValue(Bytes.toBytes(tableNameStr + "#events"), Command.dataBytes,
+					Command.valueBytes, (long) ff.rows);
+			eventMetaTable.incrementColumnValue(Bytes.toBytes("table#" + tableNameStr), Command.dataBytes,
+					Bytes.toBytes("events"), (long) ff.rows);
+
 			for (byte[] evtBytes : ff) {
 				if (evtBytes == null) {
 					logger.error(String.format("%s event is null, maybe the fits file is incomplete",
@@ -159,8 +178,9 @@ public abstract class Fits2Hbase implements Runnable {
 		// put remain
 		put(bucketEvts, timeBucket);
 		bucketEvts.clear();
-		logger.info(String.format("(%.2f%%)Finished to insert the remaining bucket - %d",
-				fits.getPercentDone() * 100.0, timeBucket));
+		logger.info(String.format("(%.2f%%)Finished to insert the remaining bucket - %d", fits.getPercentDone() * 100.0,
+				timeBucket));
+		eventMetaTable.close();
 	}
 
 	private void put(List<FitsEvent> bucketEvts, int timeBucket) throws Exception {

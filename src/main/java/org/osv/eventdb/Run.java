@@ -4,10 +4,13 @@ import org.osv.eventdb.fits.FitsFileSet;
 import org.osv.eventdb.fits.HeFits2Hbase;
 import org.osv.eventdb.fits.util.RestServer;
 import org.osv.eventdb.hbase.TableAction;
+import org.osv.eventdb.util.ConfigProperties;
 import org.osv.eventdb.util.ObserverAction;
 
 public class Run {
 	public static void main(String[] args) throws Exception {
+		ConfigProperties prop = new ConfigProperties();
+
 		if (args[0].equals("insertHeFits")) {
 			// pathname, talbename, [threads]
 			String fitsFile = args[1];
@@ -31,7 +34,7 @@ public class Run {
 		} else if (args[0].equals("deleteTable")) {
 			TableAction taction = new TableAction(args[1]);
 			// talbename
-			taction.deleteTable(args[1]);
+			taction.deleteTable();
 			System.out.printf("success to delete table(%s)\n", args[1]);
 
 		} else if (args[0].equals("observer")) {
@@ -45,6 +48,12 @@ public class Run {
 
 		} else if (args[0].equals("server")) {
 			RestServer.runAtPort(new Integer(args[1]));
+
+		} else if (args[0].equals("init")) {// init meta table
+			TableAction taction = new TableAction(prop.getProperty("fits.meta.table"));
+			taction.initMetaTable();
+			System.out.printf("success to init meta table\n");
+
 		}
 	}
 }

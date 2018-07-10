@@ -3,6 +3,7 @@ package org.osv.eventdb.hbase;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
@@ -22,7 +23,11 @@ import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.filter.PrefixFilter;
 import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding;
 import org.apache.hadoop.hbase.regionserver.BloomType;
 import org.apache.hadoop.hbase.regionserver.ConstantSizeRegionSplitPolicy;
@@ -155,6 +160,7 @@ public class TableAction {
 		Admin admin = conn.getAdmin();
 		// get meta table
 		Table metaTable = conn.getTable(TableName.META_TABLE_NAME);
+		Table eventMetaTable = conn.getTable(TableName.valueOf(configProp.getProperty("fits.meta.table")));
 		String name = tableName.getNameAsString();
 		String namespace = tableName.getNamespaceAsString();
 		// hdfs directory path
@@ -215,7 +221,15 @@ public class TableAction {
 		thisTable.incrementColumnValue(Bytes.add(Command.metaZeroBytes, Command.metaRegionsBytes), Command.dataBytes,
 				Command.valueBytes, initSplit);
 
+		eventMetaTable.incrementColumnValue(Bytes.toBytes("table#" + tableName.getNameAsString()), Command.dataBytes,
+				Bytes.toBytes("events"), 0);
+		eventMetaTable.incrementColumnValue(Bytes.toBytes(tableName.getNameAsString() + "#files"), Command.dataBytes,
+				Command.valueBytes, 0);
+		eventMetaTable.incrementColumnValue(Bytes.toBytes(tableName.getNameAsString() + "#events"), Command.dataBytes,
+				Command.valueBytes, 0);
+
 		thisTable.close();
+		eventMetaTable.close();
 		admin.close();
 		metaTable.close();
 		conn.close();
@@ -227,15 +241,41 @@ public class TableAction {
 	 * @param tableName the name of the table
 	 * @throws IOException
 	 */
-	public void deleteTable(String tableName) throws IOException {
+	public void deleteTable() throws IOException {
 		Connection con = ConnectionFactory.createConnection(conf);
 		Admin admin = con.getAdmin();
-		TableName tname = TableName.valueOf(tableName);
-		if (admin.tableExists(tname)) {
-			admin.disableTable(tname);
-			admin.deleteTable(tname);
+		if (admin.tableExists(tableName)) {
+			admin.disableTable(tableName);
+			admin.deleteTable(tableName);
 		}
+		Table eventMetaTable = con.getTable(TableName.valueOf(configProp.getProperty("fits.meta.table")));
+		List<Delete> dels = new LinkedList<Delete>();
+		dels.add(new Delete(Bytes.toBytes("table#" + tableName.getNameAsString())));
+		Scan prefixScan = new Scan();
+		prefixScan.setFilter(new PrefixFilter(tableName.getName()));
+		ResultScanner results = eventMetaTable.getScanner(prefixScan);
+		for (Result result : results)
+			dels.add(new Delete(result.getRow()));
+		eventMetaTable.delete(dels);
+		System.out.printf("success to delete table %s\n", tableName.getNameAsString());
+
 		admin.close();
 		con.close();
+	}
+
+	public void initMetaTable() throws IOException {
+		Connection conn = ConnectionFactory.createConnection(conf);
+		Admin admin = conn.getAdmin();
+		if (admin.tableExists(tableName)) {
+			throw new IOException("the meta table " + tableName.getNameAsString() + " exists already!");
+		}
+		HTableDescriptor tdesc = new HTableDescriptor(tableName);
+		HColumnDescriptor cdesc = new HColumnDescriptor(Command.dataBytes);
+		cdesc.setMaxVersions(1).setBlocksize(65536).setBlockCacheEnabled(true).setBloomFilterType(BloomType.ROW)
+				.setDataBlockEncoding(DataBlockEncoding.PREFIX_TREE);
+		tdesc.addFamily(cdesc);
+		admin.createTable(tdesc);
+		admin.close();
+		conn.close();
 	}
 }
