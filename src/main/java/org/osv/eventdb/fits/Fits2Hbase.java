@@ -50,6 +50,7 @@ public abstract class Fits2Hbase implements Runnable {
 	protected ConfigProperties configProp;
 	protected FileSystem hdfs;
 	protected double timeBucketInterval;
+	protected Table eventMetaTable;
 
 	private static Logger logger = Logger.getLogger(Fits2Hbase.class);
 
@@ -90,11 +91,13 @@ public abstract class Fits2Hbase implements Runnable {
 		config.set("fs.hdfs.impl", org.apache.hadoop.hdfs.DistributedFileSystem.class.getName());
 		this.hdfs = FileSystem.get(new URI(configProp.getProperty("fs.defaultFS")), config,
 				configProp.getProperty("fs.user"));
+		eventMetaTable = hconn.getTable(TableName.valueOf(configProp.getProperty("fits.meta.table")));
 	}
 
 	public void close() throws IOException {
 		htable.close();
 		hconn.close();
+		eventMetaTable.close();
 	}
 
 	public void run() {
@@ -123,7 +126,6 @@ public abstract class Fits2Hbase implements Runnable {
 		List<FitsEvent> bucketEvts = new LinkedList<FitsEvent>();
 		File currFile = null;
 		FitsFile ff = null;
-		Table eventMetaTable = hconn.getTable(TableName.valueOf(configProp.getProperty("fits.meta.table")));
 		while ((currFile = fits.nextFile()) != null) {
 			ff = new FitsFile(currFile.getAbsolutePath());
 			if (ff.evtLength != evtLength) {
@@ -142,11 +144,7 @@ public abstract class Fits2Hbase implements Runnable {
 			newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("type"), Bytes.toBytes(ff.type));
 			eventMetaTable.put(newFilePut);
 			eventMetaTable.incrementColumnValue(Bytes.toBytes("table#" + tableNameStr), Command.dataBytes,
-					Bytes.toBytes("events"), (long) ff.rows);
-			eventMetaTable.incrementColumnValue(Bytes.toBytes("table#" + tableNameStr), Command.dataBytes,
 					Bytes.toBytes("files"), 1);
-			eventMetaTable.incrementColumnValue(Bytes.toBytes("total"), Command.dataBytes, Bytes.toBytes("events"),
-					(long) ff.rows);
 			eventMetaTable.incrementColumnValue(Bytes.toBytes("total"), Command.dataBytes, Bytes.toBytes("files"),
 					(long) 1);
 
@@ -182,10 +180,17 @@ public abstract class Fits2Hbase implements Runnable {
 		bucketEvts.clear();
 		logger.info(String.format("(%.2f%%)Finished to insert the remaining bucket - %d", fits.getPercentDone() * 100.0,
 				timeBucket));
-		eventMetaTable.close();
 	}
 
 	private void put(List<FitsEvent> bucketEvts, int timeBucket) throws Exception {
+		String tableNameStr = htable.getName().getNameAsString();
+		eventMetaTable.incrementColumnValue(Bytes.toBytes("table#" + tableNameStr), Command.dataBytes,
+				Bytes.toBytes("events"), (long) bucketEvts.size());
+		long totalEvents = eventMetaTable.incrementColumnValue(Bytes.toBytes("total"), Command.dataBytes,
+				Bytes.toBytes("events"), (long) bucketEvts.size());
+		eventMetaTable.put(new Put(Bytes.toBytes("et#" + System.currentTimeMillis())).addColumn(Command.dataBytes,
+				Bytes.toBytes("events"), Bytes.toBytes(totalEvents)));
+
 		// bucket information
 		double startTime = 0.0;
 		double endTime = 0.0;

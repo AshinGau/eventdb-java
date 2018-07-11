@@ -13,6 +13,7 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -26,9 +27,16 @@ public class MDQuery {
 	private Configuration conf;
 	private Connection conn;
 	private Table table;
+	protected Table eventMetaTable;
 
 	public MDQuery(String tableName) throws IOException {
 		this(new ConfigProperties(), tableName);
+	}
+
+	public void close() throws IOException {
+		conn.close();
+		table.close();
+		eventMetaTable.close();
 	}
 
 	public MDQuery(ConfigProperties configProperties, String tableName) throws IOException {
@@ -41,10 +49,13 @@ public class MDQuery {
 		conf.set("zookeeper.znode.parent", configProp.getProperty("zookeeper.znode.parent"));
 		conn = ConnectionFactory.createConnection(conf);
 		table = conn.getTable(TableName.valueOf(Bytes.toBytes(tableName)));
+		eventMetaTable = conn.getTable(TableName.valueOf(configProp.getProperty("fits.meta.table")));
 	}
 
 	public List<byte[]> query(List<Integer> buckets, Map<Integer, List<PropertyValue>> getOp,
 			Map<Integer, Pair<PropertyValue, PropertyValue>> scanOp) throws IOException {
+		long startTime = System.currentTimeMillis();
+
 		List<Get> regionPrefixGets = new LinkedList<Get>();
 		for (int bucketID : buckets)
 			regionPrefixGets
@@ -95,6 +106,10 @@ public class MDQuery {
 				result.add(Snappy.uncompress(CellUtil.cloneValue(eventCell)));
 
 		}
+
+		long endTime = System.currentTimeMillis();
+		eventMetaTable.put(new Put(Bytes.toBytes("d#" + endTime)).addColumn(Command.dataBytes, Bytes.toBytes("delay"),
+				Bytes.toBytes(endTime - startTime)));
 
 		return result;
 	}

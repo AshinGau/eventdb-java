@@ -4,15 +4,15 @@
 ## 安装和运行
 1. 实验环境hadoop2.8.0，hbase1.2.6
 2. 编译打包: mvn package; 打包生成target/eventdb-1.0.0.jar
-3. 新建eventdb格式的数据表：./eventdb.sh createTable tableName initialSplitNumber; createTable是建表命令，tableName是数据表名称，initialSplitNumber指定数据表的初始分区，百亿的数据量一般指定为100，千亿的数据量一般指定为500，万亿的数据量可以指定为2000。
-4. 加载协处理器：首先需要把jar包拷贝到hdfs目录下，假设路径是/hdfs/path/to/store/java-jar/，hadoop fs -put target/eventdb-1.0.0.jar /hdfs/path/to/store/java-jar/; 然后执行加载命令, ./eventdb.sh observer tableName org.osv.eventdb.fits.FitsObserver /hdfs/path/to/store/java-jar/eventdb-1.0.0.jar
-5. 导入数据：目前完成了高能fits数据0301的导入，执行命令：./eventdb.sh insertHeFits /path/of/fitsfile tableName threadNumber。 insertHeFits是导入高能fits数据的命令，/path/of/fitsfile可以是fits文件，也可以是fits文件夹，tableName是之前新建的eventdb数据表, threaderNumber是并行导入的线程数，一般是cpu总线程数的1/10，而且很耗内存，一般一个线程就会占4~5G内存，所以运行的时候确保正确设置了jvm参数。
-6. 查询：目前做了一个查询的shell, 运行./eventdb.sh HeFitsQuery tableName进入shell界面，输入quit退出shell界面。查询命令是：time = timeStart ~ timeEnd & [detID | channel | pulse | eventType] = start ~ end | value1, value2 ... 查询的时候必须指定时间区间，目前在detID, channel, pulse, eventType四个属性上做了索引，所以可以组合查询。
+3. 新建eventdb格式的数据表：./eventdb createTable tableName initialSplitNumber; createTable是建表命令，tableName是数据表名称，initialSplitNumber指定数据表的初始分区，百亿的数据量一般指定为100，千亿的数据量一般指定为500，万亿的数据量可以指定为2000。
+4. 加载协处理器：首先需要把jar包拷贝到hdfs目录下，假设路径是/hdfs/path/to/store/java-jar/，hadoop fs -put target/eventdb-1.0.0.jar /hdfs/path/to/store/java-jar/; 然后执行加载命令, ./eventdb observer tableName org.osv.eventdb.fits.FitsObserver /hdfs/path/to/store/java-jar/eventdb-1.0.0.jar
+5. 导入数据：目前完成了高能fits数据0301的导入，执行命令：./eventdb insertHeFits /path/of/fitsfile tableName threadNumber。 insertHeFits是导入高能fits数据的命令，/path/of/fitsfile可以是fits文件，也可以是fits文件夹，tableName是之前新建的eventdb数据表, threaderNumber是并行导入的线程数，一般是cpu总线程数的1/10，而且很耗内存，一般一个线程就会占4~5G内存，所以运行的时候确保正确设置了jvm参数。
+6. 查询：目前做了一个查询的shell, 运行./eventdb HeFitsQuery tableName进入shell界面，输入quit退出shell界面。查询命令是：time = timeStart ~ timeEnd & [detID | channel | pulse | eventType] = start ~ end | value1, value2 ... 查询的时候必须指定时间区间，目前在detID, channel, pulse, eventType四个属性上做了索引，所以可以组合查询。
 
 ## 高能所demo环境
 在root@sbd01:/root/eventdb/eventdb-java目录下有已经编译打包好的jar包，hbase数据库中有一个2000亿事例的数据表HeFits0301，可以在这个表上演示和实验。
 
-./eventdb.sh HeFitsQuery HeFits0301 进入shell界面，下面列举了一些查询例子，由于是在控制台中输出，给出的查询时间不包含在控制台中输出的时间：
+./eventdb HeFitsQuery HeFits0301 进入shell界面，下面列举了一些查询例子，由于是在控制台中输出，给出的查询时间不包含在控制台中输出的时间：
 
 查询timeStamp 178890900 到 178890910 这十秒内detID是1，2，3三台探测器，脉冲宽度20到90之间的事例: time = 178890900 ~ 178890910 & detID = 1, 2, 3 & pulse = 20 ~ 90
 
@@ -69,6 +69,6 @@ List<HeEventDecoder.He> heList = HeEventDecoder.decode(result);
 
 ### RestFul API
 启动http服务  
-./eventdb.sh server 8081  
+./eventdb server 8081  
 rest api例子: http://host:8081/he/tableName?time=178797000~178797005&detID=1,2 返回csv格式查询结果  
 http://host:8081 为网址可视化界面
