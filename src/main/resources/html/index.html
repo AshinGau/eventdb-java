@@ -92,6 +92,20 @@
 <body>
 <script>
     $(function () {
+        var $table = $("#tableName");
+        $.ajax({
+            url: "/eventdb:info?op=tableList",
+                type: "GET",
+                dataType: "text",
+                success: function (data){
+                    var $option = $("<option></option>");
+                    var splits = data.split(",");
+                    for(var tb of splits)
+                        $table.append($option.clone().val(tb).text(tb));
+                        loadFitsData();
+                }
+        });
+
         var fitsChart = echarts.init(document.getElementById('chartShow'));
         var $timeStart = $("#timeStart"),
             $timeEnd = $("#timeEnd"),
@@ -195,7 +209,7 @@
                 + "&eventType=" + $eventType.val();
             query = query.replace(/\s+/g, "");
             $.ajax({
-                url: "/he/HeFits0301?" + query,
+                url: "/he/" + $table.val() + "?" + query,
                 type: "GET",
                 dataType: "text",
                 success: function (data) {
@@ -232,11 +246,11 @@
             })
         }
         $("#fitsSearch").click(loadFitsData);
-		loadFitsData();
     })
 </script>
 <div class="container">
     <div class="row form-inline" style="width: 1200px; margin: auto;" id="searchBar">
+        <select class="form-control" id="tableName" name="tableName"></select>
         <label>time:</label>
         <input type="text" class="form-control" id="timeStart" name="timeStart" style="width: 150px;"
                value="2017/9/4 22:40:00"/>
