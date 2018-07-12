@@ -1,10 +1,44 @@
 #!/bin/sh
 export EVENTDB_ENV=debug
 PRODIR=$(cd `dirname $0`; pwd)
+export EVENTDB_HOME=$PRODIR
 TARGETDIR=$PRODIR/target
 JARS=$TARGETDIR/eventdb-1.0.0.jar
 for jar in $TARGETDIR/lib/*.jar
 do
 	JARS=$JARS:$jar
 done
-java -cp $JARS org.osv.eventdb.Run $@
+
+# Find the java binary
+if [ -n "${JAVA_HOME}" ]; then
+  RUNNER="${JAVA_HOME}/bin/java"
+else
+  if [ "$(command -v java)" ]; then
+    RUNNER="java"
+  else
+    echo "JAVA_HOME is not set" >&2
+    exit 1
+  fi
+fi
+
+# Find the hadoop binary
+if [ -n $HADOOP_HOME ]; then
+	HADOOP=$HADOOP_HOME/bin/hadoop
+else
+	if [ "$(command -v hadoop)" ]; then
+		HADOOP="hadoop"
+	else
+		echo "HADOOP_HOME is not set" >&2
+		exit 1
+	fi
+fi
+
+if [ $1 = "createTable" ]; then
+	OBSERVER_HDFS="/eventdb/jar/observer/jar/"
+	$HADOOP fs -mkdir -p $OBSERVER_HDFS
+	$HADOOP fs -put -f $TARGETDIR/eventdb-1.0.0.jar $OBSERVER_HDFS
+	$RUNNER -cp $JARS org.osv.eventdb.Run $@
+	$RUNNER -cp $JARS org.osv.eventdb.Run observer $2 org.osv.eventdb.fits.FitsObserver ${OBSERVER_HDFS}eventdb-1.0.0.jar
+else
+	$RUNNER -cp $JARS org.osv.eventdb.Run $@
+fi

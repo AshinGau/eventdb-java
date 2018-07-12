@@ -42,6 +42,7 @@ public class Run {
 			// org.osv.eventdb.hbase.MDRegionObserver
 			ObserverAction action = new ObserverAction(args[1]);
 			action.addCoprocessor(args[2], args[3]);
+			System.out.printf("success to create eventdb formatted table(%s)\n", args[1]);
 
 		} else if (args[0].equals("HeFitsQuery")) {
 			HeFitsShell.console(args[1]);

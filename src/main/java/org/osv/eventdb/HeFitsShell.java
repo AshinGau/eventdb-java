@@ -34,6 +34,7 @@ public class HeFitsShell {
 		try {
 			HeQueryClient client = new HeQueryClient(tableName);
 			Scanner sc = new Scanner(System.in);
+			System.out.println("please input query or print 'quit' to exit\n");
 			while (true) {
 				if (sc.hasNextLine()) {
 					String command = sc.nextLine().trim();
