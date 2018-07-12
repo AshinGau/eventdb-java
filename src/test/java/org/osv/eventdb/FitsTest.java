@@ -1,9 +1,7 @@
 package org.osv.eventdb;
 
 import org.junit.Test;
-import org.osv.eventdb.fits.FitsFile;
 import org.osv.eventdb.fits.FitsEventDBClient;
-import org.osv.eventdb.fits.util.HeEventDecoder.He;
 
 public class FitsTest {
 	@Test

@@ -137,7 +137,7 @@ public class FitsEventDBClient {
 
 		for (Result row : results) {
 			long time = new Long(Bytes.toString(row.getRow()).substring(2));
-			long dl = new Long(Bytes.toString(row.getValue(Command.dataBytes, Bytes.toBytes("delay"))).substring(2));
+			long dl = Bytes.toLong(row.getValue(Command.dataBytes, Bytes.toBytes("delay")));
 			int tip = (int) ((time - startTimeStamp) / 1000);
 			if (tip < num) {
 				cnt[tip] += 1;
