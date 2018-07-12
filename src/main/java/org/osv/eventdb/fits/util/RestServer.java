@@ -133,7 +133,7 @@ public class RestServer extends NanoHTTPD {
 
 			if (uri.equals("") || uri.equals("/") || uri.equals("/index") || uri.equals("/index.html")) {
 				return newChunkedResponse(Status.OK, NanoHTTPD.MIME_HTML, getResourceAsStream("html/index.html"));
-			} else if (uri.equals("eventdb:info")) {
+			} else if (uri.equals("/eventdb:info")) {
 				Map<String, String> params = session.getParms();
 				String op = params.get("op");
 				if ("tableList".equals(op))

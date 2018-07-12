@@ -48,14 +48,15 @@ public class FitsEventDBClient {
 	}
 
 	public String[] list() throws IOException {
-		Scan scan = new Scan();
+		Scan scan = new Scan(Bytes.toBytes("table#"), Bytes.toBytes("table|"));
 		PrefixFilter tablepre = new PrefixFilter(Bytes.toBytes("table#"));
 		KeyOnlyFilter keyonly = new KeyOnlyFilter();
-		scan.setFilter(tablepre).setFilter(keyonly);
+		scan.setFilter(keyonly);
+		scan.setFilter(tablepre);
 		ResultScanner results = eventMetaTable.getScanner(scan);
 		List<String> tables = new ArrayList<String>();
 		for (Result row : results)
-			tables.add(Bytes.toString(row.getRow()));
+			tables.add(Bytes.toString(row.getRow()).substring(6));
 		String[] arr = new String[tables.size()];
 		for (int i = 0; i < arr.length; i++)
 			arr[i] = tables.get(i);
@@ -83,10 +84,11 @@ public class FitsEventDBClient {
 	}
 
 	public String[] getFileListOfTable(String tableName) throws IOException {
-		Scan scan = new Scan();
+		Scan scan = new Scan(Bytes.toBytes(tableName + "#"), Bytes.toBytes(tableName + "|"));
 		PrefixFilter tablepre = new PrefixFilter(Bytes.toBytes(tableName + "#"));
 		KeyOnlyFilter keyonly = new KeyOnlyFilter();
-		scan.setFilter(tablepre).setFilter(keyonly);
+		scan.setFilter(keyonly);
+		scan.setFilter(tablepre);
 		ResultScanner results = eventMetaTable.getScanner(scan);
 		List<String> files = new ArrayList<String>();
 		for (Result row : results) {
@@ -125,7 +127,7 @@ public class FitsEventDBClient {
 	}
 
 	public int[] getReadLatency(long startTimeStamp, long endTimeStamp) throws IOException {
-		Scan scan = new Scan(Bytes.toBytes("d#" + startTimeStamp), Bytes.toBytes("et#" + endTimeStamp));
+		Scan scan = new Scan(Bytes.toBytes("d#" + startTimeStamp), Bytes.toBytes("d#" + endTimeStamp));
 		ResultScanner results = eventMetaTable.getScanner(scan);
 		int start = (int) (startTimeStamp / 1000);
 		int end = (int) (endTimeStamp / 1000);
@@ -135,7 +137,7 @@ public class FitsEventDBClient {
 
 		for (Result row : results) {
 			long time = new Long(Bytes.toString(row.getRow()).substring(2));
-			long dl = Bytes.toLong(row.getValue(Command.dataBytes, Bytes.toBytes("delay")));
+			long dl = new Long(Bytes.toString(row.getValue(Command.dataBytes, Bytes.toBytes("delay"))).substring(2));
 			int tip = (int) ((time - startTimeStamp) / 1000);
 			if (tip < num) {
 				cnt[tip] += 1;
@@ -143,7 +145,8 @@ public class FitsEventDBClient {
 			}
 		}
 		for (int i = 0; i < num; i++) {
-			delay[i] /= cnt[i];
+			if(cnt[i] != 0)
+				delay[i] /= cnt[i];
 		}
 
 		return delay;
