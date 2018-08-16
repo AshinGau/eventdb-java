@@ -308,7 +308,9 @@ public abstract class MDRegionObserver extends BaseRegionObserver {
 			Region hregion = c.getEnvironment().getRegion();
 			Result oldValueResult = hregion.get(new Get(rowkey));
 			Cell oldValueCell = oldValueResult.getColumnLatestCell(Command.dataBytes, Command.valueBytes);
-			byte[] oldValue = Snappy.uncompress(CellUtil.cloneValue(oldValueCell));
+			byte[] oldValue = Bytes.toBytes("");
+			if(oldValueCell != null)
+				oldValue = Snappy.uncompress(CellUtil.cloneValue(oldValueCell));
 			byte[] newValue;
 			if (mdOp == Command.appendInt)
 				newValue = Bytes.add(oldValue, value);
