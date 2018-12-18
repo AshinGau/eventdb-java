@@ -36,7 +36,6 @@
         .form-control {
             display: block;
             width: 100%;
-            height: 25px;
             padding: 6px 12px;
             font-size: 14px;
             line-height: 1.42857143;
@@ -70,7 +69,7 @@
             background-image: none;
             border: 1px solid transparent;
             border-radius: 4px;
-            height: 25px;
+            height: 34px;
         }
 
         .btn-primary {
@@ -85,7 +84,7 @@
 
         #searchBar label {
             display: inline-block;
-            padding-left: 15px;
+            padding-left: 20px;
         }
     </style>
 </head>
@@ -93,6 +92,22 @@
 <script>
     $(function () {
         var $table = $("#tableName");
+		var $totalEvents = $("#totalEvents");
+		function loadTotalEvents() {
+			var tb = $table.val();
+			$.ajax({
+				url: "/eventdb:info?op=eventsOfTable&table=" + tb,
+				tyep: "GET",
+				dataType: "text",
+				success: function(data) {
+					data = (+data.trim()).toLocaleString();
+					$totalEvents.text("共" + data + "事例数据");
+				}
+			})
+		}
+		$table.change(function() {
+			loadTotalEvents();
+		})
         $.ajax({
             url: "/eventdb:info?op=tableList",
                 type: "GET",
@@ -102,7 +117,8 @@
                     var splits = data.split(",");
                     for(var tb of splits)
                         $table.append($option.clone().val(tb).text(tb));
-                        loadFitsData();
+					loadTotalEvents();
+                    loadFitsData();
                 }
         });
 
@@ -196,6 +212,7 @@
             ]
         };
 		function loadFitsData() {
+			fitsChart.showLoading();
             var times = $timeStart.val().trim(),
                 timee = $timeEnd.val().trim();
             if (!timeDoubleReg.test(times)) {
@@ -241,6 +258,7 @@
                     option.series[1].data = channel;
                     option.series[2].data = pulse;
                     option.series[3].data = eventType;
+					fitsChart.hideLoading();
                     fitsChart.setOption(option);
                 }
             })
@@ -250,7 +268,11 @@
 </script>
 <div class="container">
     <div class="row form-inline" style="width: 1200px; margin: auto;" id="searchBar">
-        <select class="form-control" id="tableName" name="tableName" style="width: 100px;"></select>
+		<p>
+			<label>数据表</lable>
+        	<select class="form-control" id="tableName" name="tableName" style="width: 250px;"></select>
+			<span id="totalEvents"></span>
+		</p>
         <label>time:</label>
         <input type="text" class="form-control" id="timeStart" name="timeStart" style="width: 150px;"
                value="2017/9/4 22:40:00"/>
