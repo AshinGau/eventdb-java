@@ -297,29 +297,31 @@ public abstract class MDRegionObserver extends BaseRegionObserver {
 		List<Cell> mdInsert = put.get(Command.dataBytes, Command.mdInsertBytes);
 		if (mdInsert == null || mdInsert.size() == 0)
 			return;
-		int mdOp = Bytes.toInt(CellUtil.cloneValue(mdInsert.get(0)));
-		// append or prepend
-		if (mdOp == Command.appendInt || mdOp == Command.prependInt) {
-			List<Cell> valueCells = put.get(Command.dataBytes, Command.valueBytes);
-			if (valueCells == null || valueCells.size() == 0)
-				return;
-			byte[] value = Snappy.uncompress(CellUtil.cloneValue(valueCells.get(0)));
-			byte[] rowkey = put.getRow();
-			Region hregion = c.getEnvironment().getRegion();
-			Result oldValueResult = hregion.get(new Get(rowkey));
-			Cell oldValueCell = oldValueResult.getColumnLatestCell(Command.dataBytes, Command.valueBytes);
-			byte[] oldValue = Bytes.toBytes("");
-			if(oldValueCell != null)
-				oldValue = Snappy.uncompress(CellUtil.cloneValue(oldValueCell));
-			byte[] newValue;
-			if (mdOp == Command.appendInt)
-				newValue = Bytes.add(oldValue, value);
-			else
-				newValue = Bytes.add(value, oldValue);
-			Put newPut = new Put(rowkey);
-			newPut.addColumn(Command.dataBytes, Command.valueBytes, Snappy.compress(newValue));
-			hregion.put(newPut);
-		}
+		try {
+            int mdOp = Bytes.toInt(CellUtil.cloneValue(mdInsert.get(0)));
+            // append or prepend
+            if (mdOp == Command.appendInt || mdOp == Command.prependInt) {
+                List<Cell> valueCells = put.get(Command.dataBytes, Command.valueBytes);
+                if (valueCells == null || valueCells.size() == 0)
+                    return;
+                byte[] value = Snappy.uncompress(CellUtil.cloneValue(valueCells.get(0)));
+                byte[] rowkey = put.getRow();
+                Region hregion = c.getEnvironment().getRegion();
+                Result oldValueResult = hregion.get(new Get(rowkey));
+                Cell oldValueCell = oldValueResult.getColumnLatestCell(Command.dataBytes, Command.valueBytes);
+                byte[] oldValue = Snappy.uncompress(CellUtil.cloneValue(oldValueCell));
+                byte[] newValue;
+                if (mdOp == Command.appendInt)
+                    newValue = Bytes.add(oldValue, value);
+                else
+                    newValue = Bytes.add(value, oldValue);
+                Put newPut = new Put(rowkey);
+                newPut.addColumn(Command.dataBytes, Command.valueBytes, Snappy.compress(newValue));
+                hregion.put(newPut);
+            }
+        }catch (Exception e){
+		    return;
+        }
 		c.bypass();
 	}
 }
