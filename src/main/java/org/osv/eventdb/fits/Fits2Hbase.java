@@ -261,6 +261,11 @@ public abstract class Fits2Hbase implements Runnable {
 					// get new region prefix
 					regionPrefixInt = regionPrefixNew;
 					regionPrefix = Bytes.toBytes(regionPrefixInt);
+
+					Put updateSplitPut = new Put(Bytes.add(Command.metaZeroBytes,
+							Command.metaSplitBytes, Bytes.toBytes(Integer.valueOf(regionIndex))));
+					updateSplitPut.addColumn(Command.dataBytes, Command.valueBytes, regionPrefix);
+					htable.put(updateSplitPut);
 				}
 			} finally {
 				idLock.releaseLockEntry(lockEntry);
