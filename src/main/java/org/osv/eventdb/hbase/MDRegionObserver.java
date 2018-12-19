@@ -320,6 +320,7 @@ public abstract class MDRegionObserver extends BaseRegionObserver {
                 hregion.put(newPut);
             }
         }catch (Exception e){
+			c.complete();
 		    return;
         }
 		c.bypass();

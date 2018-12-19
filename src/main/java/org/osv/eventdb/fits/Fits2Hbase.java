@@ -51,6 +51,7 @@ public abstract class Fits2Hbase implements Runnable {
 	protected FileSystem hdfs;
 	protected double timeBucketInterval;
 	protected Table eventMetaTable;
+	protected String currentFitsFile;
 
 	private static Logger logger = Logger.getLogger(Fits2Hbase.class);
 
@@ -101,11 +102,7 @@ public abstract class Fits2Hbase implements Runnable {
 	}
 
 	public void run() {
-		try {
-			insertFitsFile();
-		} catch (Exception e) {
-			logger.error("failed to insert fits file", e);
-		}
+		insertFitsFile();
 	}
 
 	public void start() {
@@ -120,66 +117,75 @@ public abstract class Fits2Hbase implements Runnable {
 
 	protected abstract FitsEvent getEvt(byte[] evtBin);
 
-	public void insertFitsFile() throws Exception {
+	public void insertFitsFile() {
 		int preBucket = 0;
 		int timeBucket = 0;
 		List<FitsEvent> bucketEvts = new LinkedList<FitsEvent>();
 		File currFile = null;
 		FitsFile ff = null;
 		while ((currFile = fits.nextFile()) != null) {
-			ff = new FitsFile(currFile.getAbsolutePath());
-			if (ff.evtLength != evtLength) {
-				logger.error(String.format("%s event length error", currFile.getAbsoluteFile()));
-				continue;
-			}
-
-			String tableNameStr = htable.getName().getNameAsString();
-			Put newFilePut = new Put(Bytes.toBytes(tableNameStr + "#" + currFile.getName()));
-			newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("rows"), Bytes.toBytes(ff.rows));
-			newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("evtLength"), Bytes.toBytes(ff.evtLength));
-			newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("tstart"), Bytes.toBytes(ff.tstart));
-			newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("tstop"), Bytes.toBytes(ff.tstop));
-			newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("dateStart"), Bytes.toBytes(ff.dateStart));
-			newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("dateStop"), Bytes.toBytes(ff.dateStop));
-			newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("type"), Bytes.toBytes(ff.type));
-			eventMetaTable.put(newFilePut);
-			eventMetaTable.incrementColumnValue(Bytes.toBytes("table#" + tableNameStr), Command.dataBytes,
-					Bytes.toBytes("files"), 1);
-			eventMetaTable.incrementColumnValue(Bytes.toBytes("total"), Command.dataBytes, Bytes.toBytes("files"),
-					(long) 1);
-
-			for (byte[] evtBytes : ff) {
-				if (evtBytes == null) {
-					logger.error(String.format("%s event is null, maybe the fits file is incomplete",
-							currFile.getAbsoluteFile()));
-					break;
+			try {
+				ff = new FitsFile(currFile.getAbsolutePath());
+				if (ff.evtLength != evtLength) {
+					logger.error(String.format("%s event length error", currFile.getAbsoluteFile()));
+					continue;
 				}
-				FitsEvent he = getEvt(evtBytes);
-				timeBucket = he.getBucketID();
-				if (preBucket == timeBucket) {
-					bucketEvts.add(he);
-				} else {
-					if (preBucket != 0) {
-						// put
-						put(bucketEvts, preBucket);
-						logger.info(String.format("(%.2f%%)Finished to insert timeBucket: %s - %d",
-								fits.getPercentDone() * 100.0, currFile.getAbsolutePath(), preBucket));
-						bucketEvts.clear();
+
+				currentFitsFile = currFile.getAbsolutePath();
+				String tableNameStr = htable.getName().getNameAsString();
+				Put newFilePut = new Put(Bytes.toBytes(tableNameStr + "#" + currFile.getName()));
+				newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("rows"), Bytes.toBytes(ff.rows));
+				newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("evtLength"), Bytes.toBytes(ff.evtLength));
+				newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("tstart"), Bytes.toBytes(ff.tstart));
+				newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("tstop"), Bytes.toBytes(ff.tstop));
+				newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("dateStart"), Bytes.toBytes(ff.dateStart));
+				newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("dateStop"), Bytes.toBytes(ff.dateStop));
+				newFilePut.addColumn(Command.dataBytes, Bytes.toBytes("type"), Bytes.toBytes(ff.type));
+				eventMetaTable.put(newFilePut);
+				eventMetaTable.incrementColumnValue(Bytes.toBytes("table#" + tableNameStr), Command.dataBytes,
+						Bytes.toBytes("files"), 1);
+				eventMetaTable.incrementColumnValue(Bytes.toBytes("total"), Command.dataBytes, Bytes.toBytes("files"),
+						(long) 1);
+
+				for (byte[] evtBytes : ff) {
+					if (evtBytes == null) {
+						logger.error(String.format("%s event is null, maybe the fits file is incomplete",
+								currFile.getAbsoluteFile()));
+						break;
 					}
-					preBucket = timeBucket;
-					bucketEvts.add(he);
+					FitsEvent he = getEvt(evtBytes);
+					timeBucket = he.getBucketID();
+					if (preBucket == timeBucket) {
+						bucketEvts.add(he);
+					} else {
+						if (preBucket != 0) {
+							// put
+							put(bucketEvts, preBucket);
+							logger.info(String.format("(%.2f%%)Finished to insert timeBucket: %s - %d",
+									fits.getPercentDone() * 100.0, currFile.getAbsolutePath(), preBucket));
+							bucketEvts.clear();
+						}
+						preBucket = timeBucket;
+						bucketEvts.add(he);
+					}
 				}
+				logger.info(String.format("(%.2f%%)Finished to insert fits file: %s", fits.getPercentDone() * 100.0,
+						currFile.getAbsolutePath()));
+				fits.incDone();
+				ff.close();
+			}catch (Exception e){
+				logger.error("failed to insert fits file " + currentFitsFile, e);
 			}
-			logger.info(String.format("(%.2f%%)Finished to insert fits file: %s", fits.getPercentDone() * 100.0,
-					currFile.getAbsolutePath()));
-			fits.incDone();
-			ff.close();
 		}
 		// put remain
-		put(bucketEvts, timeBucket);
-		bucketEvts.clear();
-		logger.info(String.format("(%.2f%%)Finished to insert the remaining bucket - %d", fits.getPercentDone() * 100.0,
-				timeBucket));
+		try {
+			put(bucketEvts, timeBucket);
+			bucketEvts.clear();
+			logger.info(String.format("(%.2f%%)Finished to insert the remaining bucket - %d", fits.getPercentDone() * 100.0,
+					timeBucket));
+		}catch (Exception e){
+			logger.error("failed to insert fits file " + currentFitsFile, e);
+		}
 	}
 
 	private void put(List<FitsEvent> bucketEvts, int timeBucket) throws Exception {
