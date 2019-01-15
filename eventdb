@@ -35,8 +35,8 @@ fi
 
 if [ $1 = "createTable" ]; then
 	OBSERVER_HDFS="/eventdb/jar/observer/jar/"
-	$HADOOP fs -mkdir -p $OBSERVER_HDFS
-	$HADOOP fs -put -f $TARGETDIR/eventdb-1.0.0.jar $OBSERVER_HDFS
+	sudo -u hdfs $HADOOP fs -mkdir -p $OBSERVER_HDFS
+	sudo -u hdfs $HADOOP fs -put -f $TARGETDIR/eventdb-1.0.0.jar $OBSERVER_HDFS
 	$RUNNER -cp $JARS org.osv.eventdb.Run $@
 	$RUNNER -cp $JARS org.osv.eventdb.Run observer $2 org.osv.eventdb.fits.FitsObserver ${OBSERVER_HDFS}eventdb-1.0.0.jar
 else
