@@ -1,7 +1,7 @@
 package org.osv.eventdb.util;
 
 /**
- * The BitArray class wraps a bit array and provides all kinds of bit oprations.
+ * The BitArray class wraps a bit array and provides all kinds of bit operations.
  */
 public class BitArray {
 	private byte[] bits;
@@ -81,6 +81,14 @@ public class BitArray {
 		int byteOffset = position / 8;
 		int bitOffset = position % 8;
 		bits[byteOffset] |= (byte) (0x80 >> bitOffset);
+		return this;
+	}
+
+	public BitArray set(int position, boolean value) {
+		if(value)
+			set(position);
+		else
+			clear(position);
 		return this;
 	}
 
