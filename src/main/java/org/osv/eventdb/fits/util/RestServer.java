@@ -60,6 +60,11 @@ public class RestServer extends NanoHTTPD {
 		return newFixedLengthResponse(Status.OK, NanoHTTPD.MIME_PLAINTEXT, String.valueOf(client.getTotalEvents()));
 	}
 
+	public static Response clientGetVolume() throws IOException {
+		return newFixedLengthResponse(Status.OK, NanoHTTPD.MIME_PLAINTEXT,
+				String.valueOf(client.getTotalEvents()*16/1024/1024/1024) + "GB");
+	}
+
 	public static Response clientGetTotalFiles() throws IOException {
 		return newFixedLengthResponse(Status.OK, NanoHTTPD.MIME_PLAINTEXT, String.valueOf(client.getTotalFiles()));
 	}
@@ -140,6 +145,8 @@ public class RestServer extends NanoHTTPD {
 					return clientGetTableList();
 				else if ("totalEvents".equals(op))
 					return clientGetTotalEvents();
+				else if ("volume".equals(op))
+					return clientGetVolume();
 				else if ("totalFiles".equals(op))
 					return clientGetTotalFiles();
 				else if ("eventsOfTable".equals(op))

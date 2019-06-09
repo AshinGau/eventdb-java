@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title> 事例数据库EventDB - 面向高能物理的大数据管理系统</title>
+    <script src="/static/js/jquery-3.2.1.min.js"></script>
+    <script src="/static/js/echarts.common.min.js"></script>
+    <style text="text/css" rel="stylesheet">
+        * {
+            -webkit-box-sizing: border-box;
+            -moz-box-sizing: border-box;
+            box-sizing: border-box;
+        }
+
+        input, textarea, select, button {
+            text-rendering: auto;
+            color: initial;
+            letter-spacing: normal;
+            word-spacing: normal;
+            text-transform: none;
+            text-indent: 0px;
+            text-shadow: none;
+            display: inline-block;
+            text-align: start;
+            margin: 0em;
+            font: 400 11px system-ui;
+        }
+
+        input {
+            background-color: white;
+            cursor: text;
+            padding: 1px;
+        }
+
+        .form-control {
+            display: block;
+            width: 100%;
+            padding: 6px 12px;
+            font-size: 14px;
+            line-height: 1.42857143;
+            color: #555;
+            background-color: #fff;
+            background-image: none;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075);
+            box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075);
+            transition: border-color ease-in-out .15s, box-shadow ease-in-out .15s;
+        }
+
+        .form-inline .form-control {
+            display: inline-block;
+            width: auto;
+            vertical-align: middle;
+        }
+
+        .btn {
+            display: inline-block;
+            margin-bottom: 0;
+            font-size: 14px;
+            font-weight: 400;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: middle;
+            touch-action: manipulation;
+            cursor: pointer;
+            user-select: none;
+            background-image: none;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            height: 34px;
+        }
+
+        .btn-primary {
+            color: #fff;
+            background-color: #337ab7;
+            border-color: #2e6da4;
+        }
+
+        #searchBar input {
+            width: 77px;
+        }
+
+        #searchBar label {
+            display: inline-block;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+<script>
+
+    var writeSpeedOption = {
+        title: {
+            text: 'EventDB写入速度'
+        },
+        tooltip: {
+            trigger: 'axis',
+            formatter: function (params) {
+                params = params[0];
+                var date = new Date(params.name);
+                return date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds() + " " + params.value[1];
+            },
+            axisPointer: {
+                animation: false
+            }
+        },
+        xAxis: {
+            type: 'time',
+            splitLine: {
+                show: false
+            }
+        },
+        yAxis: {
+            type: 'value',
+            boundaryGap: [0, '100%'],
+            splitLine: {
+                show: false
+            }
+        },
+        series: [{
+            name: 'writeSpeed',
+            type: 'line',
+            showSymbol: false,
+            hoverAnimation: false,
+            data: data
+        }]
+    };
+    $(function () {
+
+    })
+</script>
+<div class="container">
+    <div class="row">
+        <div class="chart" style="padding-top: 20px; width:1100px; margin:auto;">
+            <div id="writeSpeed" style="width: 550px; height: 400px;"></div>
+        </div>
+    </div>
+</div>
+<div class="footer">
+    <p style="text-align:center; font-size:12px; padding: 40px 0px 20px 0px;">
+        © 2018
+        <a href="">xjtuosv.com</a>
+        XJTU OSV EventDB
+    </p>
+</div>
+</body>
+
+</html>
