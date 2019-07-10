@@ -6,3 +6,7 @@ branch test2: test brach
 branch test1: edit first
 
 branch test2: edit later
+
+branch test3: commit 1
+
+branch test3: commit amend
