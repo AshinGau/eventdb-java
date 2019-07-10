@@ -247,7 +247,8 @@
                         var cols = lines[i].split(",");
                         var dt = new Date((+cols[0] + 1325376000) * 1000);
                         time.push(dt.getFullYear() + "/" + (dt.getMonth() + 1) + "/" + dt.getDate() + " "
-                            + dt.getHours() + ":" + dt.getMinutes() + ":" + dt.getSeconds());
+                            + dt.getHours() + ":" + dt.getMinutes() + ":" + dt.getSeconds()
+                            + "." + cols[0].split(".")[1]);
                         detID.push(+cols[1]);
                         channel.push(+cols[2]);
                         pulse.push(+cols[3]);
