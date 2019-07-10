@@ -3,4 +3,6 @@ branch test1: test git reset in stage area
 
 branch test2: test brach
 
+branch test1: edit first
+
 branch test2: edit later
