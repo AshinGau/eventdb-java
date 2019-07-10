@@ -1,2 +1,4 @@
 branch test1: test branch
 branch test1: test git reset in stage area
+
+branch test2: test brach
