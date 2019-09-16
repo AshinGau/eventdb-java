@@ -115,7 +115,14 @@
                 success: function (data){
                     var $option = $("<option></option>");
                     var splits = data.split(",");
+                    var tables = [];
                     for(var tb of splits)
+                      if(tb == "application"){
+                        tables.unshift(tb);
+                      }else{
+                        tables.push(tb);
+                      }
+                    for(var tb of tables)
                         $table.append($option.clone().val(tb).text(tb));
 					loadTotalEvents();
                     loadFitsData();
@@ -213,11 +220,12 @@
         };
 		function loadFitsData() {
 			fitsChart.showLoading();
+			      var baseTime = Number(new Date("2012/01/01 00:00:00"));
             var times = $timeStart.val().trim(),
                 timee = $timeEnd.val().trim();
             if (!timeDoubleReg.test(times)) {
-                times = Number(new Date(times)) / 1000 - 1325376000;
-                timee = Number(new Date(timee)) / 1000 - 1325376000;
+                times = (Number(new Date(times)) - baseTime) / 1000;
+                timee = (Number(new Date(timee)) - baseTime) / 1000;
             }
             var query = "time=" + times + "~" + timee
                 + "&detID=" + $detID.val()
@@ -245,7 +253,7 @@
                     option.dataZoom[1].end = zoomend;
                     for (var i = 1; i < length; i++) {
                         var cols = lines[i].split(",");
-                        var dt = new Date((+cols[0] + 1325376000) * 1000);
+                        var dt = new Date(+cols[0] * 1000 + baseTime);
                         time.push(dt.getFullYear() + "/" + (dt.getMonth() + 1) + "/" + dt.getDate() + " "
                             + dt.getHours() + ":" + dt.getMinutes() + ":" + dt.getSeconds()
                             + "." + cols[0].split(".")[1]);
@@ -270,16 +278,16 @@
 <div class="container">
     <div class="row form-inline" style="width: 1200px; margin: auto;" id="searchBar">
 		<p>
-			<label>数据表</lable>
-        	<select class="form-control" id="tableName" name="tableName" style="width: 250px;"></select>
+			<lable>数据表</lable>
+        <select class="form-control" id="tableName" name="tableName" style="width: 250px;"></select>
 			<span id="totalEvents"></span>
 		</p>
         <label>time:</label>
         <input type="text" class="form-control" id="timeStart" name="timeStart" style="width: 150px;"
-               value="2017/9/4 22:40:00"/>
+               value="2019/3/26 7:35:00"/>
         <span>~</span>
         <input type="text" class="form-control" id="timeEnd" name="timeEnd" style="width: 150px;"
-               value="2017/9/4 22:40:05"/>
+               value="2019/3/26 7:35:05"/>
         <label>detID:</label>
         <input type="text" class="form-control" id="detID" name="detID" value="1, 7"/>
         <label>channel:</label>

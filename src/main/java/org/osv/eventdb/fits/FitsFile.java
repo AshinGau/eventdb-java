@@ -31,8 +31,10 @@ public class FitsFile implements Iterable<byte[]> {
 		Header header = hdu.getHeader();
 		rows = header.getIntValue("NAXIS2");
 		evtLength = header.getIntValue("NAXIS1");
-		tstart = header.getBigIntegerValue("TSTART").longValue();
-		tstop = header.getBigIntegerValue("TSTOP").longValue();
+		// tstart = header.getBigIntegerValue("TSTART").longValue();
+		tstart = (long)header.getDoubleValue("TSTART");
+		// tstop = header.getBigIntegerValue("TSTOP").longValue();
+		tstop = (long)header.getDoubleValue("TSTOP");
 		dateStart = header.getStringValue("DATE-OBS").trim();
 		dateStop = header.getStringValue("DATE-END").trim();
 		type = header.getStringValue("INSTRUME").trim();
